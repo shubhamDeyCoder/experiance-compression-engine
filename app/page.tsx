@@ -37,24 +37,24 @@ export default function Home() {
     <main className="min-h-screen overflow-hidden bg-[#08111f] text-white">
       
 <nav className="flex items-center justify-between border-b border-white/10 px-6 py-4 md:px-12">
-  <a href="/" className="text-lg font-bold tracking-tight text-white">
+  <Link href="/" className="text-lg font-bold tracking-tight text-white">
     Experience<span className="text-emerald-400">Engine</span>
-  </a>
+  </Link>
 
   <div className="flex items-center gap-3">
-    <a
+    <Link
       href="/login"
       className="rounded-lg border border-white/15 px-4 py-2 text-sm font-medium text-white transition hover:bg-white/10"
     >
       Log in
-    </a>
+    </Link>
 
-    <a
+    <Link
       href="/login"
       className="rounded-lg bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 transition hover:bg-emerald-300"
     >
       Sign up
-    </a>
+    </Link>
   </div>
 </nav>
 
@@ -82,19 +82,19 @@ export default function Home() {
 
           
 <div className="mt-8 flex flex-wrap gap-4">
-  <a
+  <Link
     href="/login"
     className="rounded-xl bg-emerald-400 px-6 py-3 font-semibold text-slate-950 transition hover:bg-emerald-300"
   >
     Get Started →
-  </a>
+  </Link>
 
-  <a
+  <Link
     href="/demo"
     className="rounded-xl border border-white/15 px-6 py-3 font-semibold text-white transition hover:bg-white/10"
   >
     Explore Demo
-  </a>
+  </Link>
 </div>
 
 
