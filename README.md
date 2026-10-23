@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Experience Compression Engine
 
-## Getting Started
+Experience Compression Engine turns practitioner judgment into reviewed learning cases. It is a Next.js App Router application backed by Supabase authentication and Row Level Security.
 
-First, run the development server:
+## Milestone 2: Expert Case Capture & Review
+
+This milestone adds two protected workspaces:
+
+- `/expert` — experts create private drafts, revise rejected work, and submit complete cases.
+- `/review` — reviewers see only submitted cases and can approve them for learners or request a revision with feedback.
+
+An approved case remains compatible with the learner dashboard. The expert workflow deliberately captures source material and decision rationale; adding scored learner answer choices is a separate scenario-design concern.
+
+### Workflow and security
+
+1. An administrator assigns an authenticated user either the `expert` or `reviewer` role in `public.case_roles`.
+2. Experts use database functions to create and edit only their own drafts or rejected cases.
+3. Submission records an immutable snapshot. The case is read-only while it awaits review.
+4. A reviewer other than the author approves or rejects it. Approval sets `is_approved` so the existing learner dashboard can read it.
+5. Row Level Security limits authors to their work, reviewers to pending work, and learners to approved cases. Direct browser writes are revoked; workflow transitions occur only in security-definer functions with role and input checks.
+
+The migrations retain submission and review snapshots in `expert_case_revisions` and enforce payload size, required fields, and field length limits server-side.
+
+### Set up locally
+
+Create `.env.local` with your Supabase project values:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Install and run the app:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm install
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Apply database migrations to a linked project:
 
-## Learn More
+```bash
+supabase db push
+```
 
-To learn more about Next.js, take a look at the following resources:
+### Provision an expert or reviewer
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+After the person has signed up, use the Supabase SQL editor as an administrator. Replace the placeholder UUID with the user ID from **Authentication → Users**:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sql
+insert into public.case_roles (user_id, role)
+values ('USER_UUID_HERE', 'expert');
+```
 
-## Deploy on Vercel
+Use `reviewer` instead to provision a review account. The table intentionally permits one workflow role per account; use separate accounts if someone needs to author and review, preserving the no-self-review control.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Checks
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run lint
+npm run build
+```
