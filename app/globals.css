@@ -1,11 +1,9 @@
+
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: Arial, Helvetica, sans-serif;
@@ -16,6 +14,8 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --color-background: var(--background);
+    --color-foreground: var(--foreground);
   }
 }
 
@@ -26,39 +26,283 @@ body {
 }
 
 /* Shared enterprise authentication styles */
+
 .ece-auth-shell {
   background:
     radial-gradient(ellipse at 12% 8%, rgba(58, 142, 128, 0.14), transparent 35%),
     radial-gradient(ellipse at 90% 88%, rgba(56, 92, 143, 0.15), transparent 32%),
     #07111f;
 }
+
 .ece-auth-input {
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(4, 13, 25, 0.7);
   color: #f8fafc;
 }
-.ece-auth-input::placeholder { color: #64748b; }
+
+.ece-auth-input::placeholder {
+  color: #64748b;
+}
+
 .ece-auth-input:focus {
   border-color: rgba(142, 226, 196, 0.8);
   box-shadow: 0 0 0 3px rgba(142, 226, 196, 0.1);
 }
+
 .ece-orb {
   position: absolute;
   border: 1px solid rgba(186, 244, 220, 0.15);
   border-radius: 9999px;
   pointer-events: none;
 }
+
 .ece-orb-one {
   width: 480px;
   height: 480px;
   right: -210px;
   top: 80px;
-  box-shadow: 0 0 0 44px rgba(186, 244, 220, 0.025), 0 0 0 90px rgba(186, 244, 220, 0.02);
+  box-shadow:
+    0 0 0 44px rgba(186, 244, 220, 0.025),
+    0 0 0 90px rgba(186, 244, 220, 0.02);
 }
+
 .ece-orb-two {
   width: 240px;
   height: 240px;
   right: -90px;
   top: 200px;
-  background: radial-gradient(circle at 30% 30%, rgba(186, 244, 220, 0.11), transparent 70%);
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(186, 244, 220, 0.11),
+    transparent 70%
+  );
+}
+
+/* Premium animated login page */
+
+.ece-login {
+  isolation: isolate;
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(35, 100, 91, 0.18), transparent 38%),
+    radial-gradient(ellipse at 85% 90%, rgba(31, 72, 105, 0.2), transparent 40%),
+    #07111d;
+}
+
+.ece-login-grid {
+  opacity: 0.19;
+  background-image:
+    linear-gradient(rgba(186, 244, 220, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(186, 244, 220, 0.055) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: linear-gradient(to bottom, black, transparent 90%);
+}
+
+.ece-login-orb {
+  position: absolute;
+  z-index: -1;
+  width: min(46vw, 580px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(100px);
+  opacity: 0.16;
+  will-change: transform;
+}
+
+.ece-login-orb-a {
+  top: -15%;
+  left: -12%;
+  background: #3dd6a0;
+}
+
+.ece-login-orb-b {
+  right: -15%;
+  bottom: -22%;
+  background: #3184c7;
+}
+
+.ece-login-card {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(10, 20, 33, 0.87);
+  box-shadow:
+    0 35px 100px rgba(0, 0, 0, 0.36),
+    0 1px 0 rgba(255, 255, 255, 0.04) inset;
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+.ece-login-hero {
+  background:
+    radial-gradient(ellipse at 10% 10%, rgba(113, 231, 190, 0.11), transparent 45%),
+    linear-gradient(145deg, #102d32 0%, #0d202d 52%, #0c1927 100%);
+}
+
+.ece-hero-light {
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(75px);
+}
+
+.ece-hero-light-one {
+  top: 18%;
+  right: -25%;
+  background: rgba(104, 224, 184, 0.1);
+}
+
+.ece-hero-light-two {
+  bottom: -30%;
+  left: -20%;
+  background: rgba(57, 131, 165, 0.12);
+}
+
+.ece-gradient-text {
+  color: #baf4dc;
+  background: linear-gradient(
+    105deg,
+    #e1fff2 0%,
+    #9debcf 35%,
+    #75d6c3 65%,
+    #d5fff0 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ece-text-flow 7s linear infinite;
+}
+
+@keyframes ece-text-flow {
+  to {
+    background-position: 200% center;
+  }
+}
+
+.ece-login-step {
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.025);
+  transition:
+    background 300ms ease,
+    border-color 300ms ease;
+}
+
+.ece-login-step:hover {
+  background: rgba(167, 233, 210, 0.055);
+}
+
+.ece-login-form {
+  background:
+    radial-gradient(ellipse at 90% 0%, rgba(125, 211, 180, 0.035), transparent 42%),
+    rgba(7, 16, 28, 0.45);
+}
+
+.ece-login-input {
+  min-height: 51px;
+  border: 1px solid rgba(255, 255, 255, 0.105);
+  background: rgba(255, 255, 255, 0.035);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.015) inset;
+}
+
+.ece-login-input:hover {
+  border-color: rgba(186, 244, 220, 0.25);
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.ece-login-input:focus {
+  border-color: rgba(142, 226, 196, 0.75);
+  background: rgba(142, 226, 196, 0.035);
+  box-shadow:
+    0 0 0 3px rgba(142, 226, 196, 0.09),
+    0 0 25px rgba(142, 226, 196, 0.045);
+}
+
+.ece-login-input:-webkit-autofill,
+.ece-login-input:-webkit-autofill:hover,
+.ece-login-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: white;
+  transition: background-color 9999s ease-in-out 0s;
+  box-shadow: 0 0 0 1000px #10202b inset;
+}
+
+.ece-login-submit {
+  isolation: isolate;
+  background: linear-gradient(
+    105deg,
+    #baf4dc 0%,
+    #91e7c8 48%,
+    #baf4dc 100%
+  );
+  box-shadow:
+    0 8px 26px rgba(60, 190, 143, 0.12),
+    0 1px 0 rgba(255, 255, 255, 0.35) inset;
+}
+
+.ece-login-submit:hover:not(:disabled) {
+  box-shadow:
+    0 10px 34px rgba(60, 190, 143, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+
+.ece-button-shimmer {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  transform: translateX(-130%) skewX(-18deg);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.42),
+    transparent
+  );
+  animation: ece-shimmer 5s ease-in-out infinite;
+}
+
+@keyframes ece-shimmer {
+  0%,
+  65%,
+  100% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+
+  85% {
+    transform: translateX(130%) skewX(-18deg);
+  }
+}
+
+.ece-login-link {
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ece-login-link:hover {
+  border-color: rgba(142, 226, 196, 0.4);
+  background: rgba(142, 226, 196, 0.055);
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ece-gradient-text,
+  .ece-button-shimmer {
+    animation: none;
+  }
+
+  .ece-login-link,
+  .ece-login-step {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .ece-login-orb {
+    width: 80vw;
+    filter: blur(75px);
+    opacity: 0.11;
+  }
+
+  .ece-login-card {
+    border-radius: 24px;
+  }
 }
