@@ -95,3 +95,21 @@ Test additions (after the Batch 1 flow):
 Architecture: Next.js pages -> Supabase RPC functions (all authorization and scoring in PostgreSQL) -> one API route
 (`/api/engine`) that calls retrieval with the caller's own token and optionally an LLM. Roles are granted only by an
 administrator in `case_roles`.
+
+## Company onboarding foundation
+
+The company onboarding migration adds `companies`, `company_memberships`, and `company_invitations`, plus secure RPCs for creating a company workspace, issuing invitations, and accepting invitations. It does not yet replace the existing case workflow's `case_roles` model or complete the manager dashboard; those are the next integration tasks.
+
+Apply the new migration after the existing migrations:
+
+```bash
+supabase db push
+```
+
+New routes:
+
+- `/login` — enterprise-style sign-in and password reset.
+- `/company/register` — company and first-manager onboarding.
+- `/register?invite=TOKEN` — employee registration from a manager-issued invitation.
+
+Invitation creation is exposed as a protected database RPC, but the manager-facing invitation UI and email delivery still need to be implemented. Do not manually insert company roles from the browser or disable RLS to make onboarding work.
