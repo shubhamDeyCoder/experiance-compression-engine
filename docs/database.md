@@ -19,6 +19,7 @@ The authoritative schema is defined by the SQL migration files in `supabase/migr
 | 🛡️ Role management | Assignment of expert and reviewer workflow roles |
 | 🧠 Practice and progress | Learning attempts, evaluation results, and progress data |
 | 🏢 Company onboarding | Company workspaces, memberships, and invitations |
+| 🧠 AI learning engine | Company-scoped validated knowledge, embeddings, scenarios, evaluations, and feedback |
 
 The actual tables, relationships, and available fields depend on the migrations applied to the database.
 
@@ -105,7 +106,26 @@ The company-onboarding foundation introduces:
 - `company_memberships` — company-user membership records.
 - `company_invitations` — invitation records.
 
-Company onboarding is not yet equivalent to a complete manager dashboard. Invitation UI, email delivery, and integration with the existing case-role system require further implementation.
+The manager dashboard uses protected functions for membership overview and invitation creation/acceptance. Invitation email delivery is not configured. Company workspace roles coexist with the expert/reviewer `case_roles` workflow; verify both role systems when testing access.
+
+## 🧠 AI learning data and isolation
+
+The `20261025120000_ai_learning_engine.sql` migration adds:
+
+- `engine_knowledge`: manager decisions, allow-listed web source content, and manager-validated feedback; each row belongs to one company and stores a 1536-dimension embedding.
+- `expert_cases.engine_embedding`: optional embeddings for reviewer-approved shared cases.
+- `engine_scenarios`, `engine_evaluations`, and `engine_feedback`: learner-owned scenario/evaluation records and feedback, with company attribution where available.
+- `engine_evaluation_examples`: company-scoped evaluation candidates that remain pending until a manager validates or rejects them for a future evaluation dataset. Managers can export only validated examples and feedback through a company-scoped RPC.
+- `engine_trusted_domains`: platform-admin-managed allow-list for web ingestion.
+- `export_engine_training_dataset`: returns manager-authorized, company-scoped expert-reviewed evaluation decisions, company learner attempts against approved expert-authored rubrics, and curated company knowledge. Interactive callers can export only their own manager company; the service-role worker must explicitly provide a valid company ID.
+- `list_engine_training_companies`: service-role-only discovery of companies with reviewed training examples or learner attempts, for scheduled retraining.
+- `engine_request_limits` and `consume_engine_request_limit`: private per-user/action request counters updated atomically by an allow-listed RPC. The table has RLS enabled and no direct client grants; API calls fail closed if quota checks fail.
+
+Direct browser access to these tables is revoked. Protected security-definer functions enforce identity, company membership, manager/reviewer privileges, learner ownership, and approved-case status. Hybrid retrieval includes the caller's primary company knowledge only; approved platform cases remain shared learning content. The existing case approval and practice-scoring functions remain authoritative.
+
+To authorize an external source domain, an administrator must review and insert its base domain into `public.engine_trusted_domains`. The manager ingestion endpoint accepts HTTPS only, refuses redirects, and caps downloaded pages at 1 MB. RAG retrieval, validated feedback, and stored evaluations are not model training or fine-tuning.
+
+When enabled, the Python training process accesses data only through the export RPC, maintains separate company artifact directories, and requires minimum class counts and a leakage-resistant group holdout before promoting a model. The Supabase service-role key is server-only and must never be placed in Next.js public environment variables or browser code.
 
 ## 🚀 Migrations and Local Development
 

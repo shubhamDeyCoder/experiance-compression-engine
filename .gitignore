@@ -2,6 +2,8 @@
 
 # Dependencies
 /node_modules
+/ai-engine/.venv/
+**/.venv/
 /.pnp
 .pnp.*
 .yarn/*
@@ -20,6 +22,7 @@
 # Production builds
 /build
 /dist
+/ai-engine/artifacts/
 
 # Miscellaneous
 .DS_Store

@@ -56,9 +56,10 @@ export function buildLearningPath(matches: EngineMatch[]): PathStep[] {
 }
 
 export const ENGINE_LIMITATIONS = [
-  "Results only come from reviewer-approved cases in this platform. The corpus is small, so some problems will have no good match.",
-  "Matching is keyword-based (PostgreSQL full-text search with weights), not semantic: related problems described in very different words can be missed.",
+  "Retrieval uses approved cases and manager-curated knowledge visible to your company membership; the corpus may not cover every problem.",
+  "With OPENAI_API_KEY, retrieval combines vector similarity and PostgreSQL full-text search. Without it, retrieval falls back to keyword search.",
+  "AI scenarios and evaluations are grounded in retrieved sources but can still be wrong; compare them with the cited reviewer-approved evidence.",
+  "Saved scores adapt practice difficulty but are not a validated competency measure. Manager validation is required before feedback becomes searchable knowledge.",
+  "Retrieval and feedback do not train or fine-tune a model. Saved outcomes can support a future curated evaluation dataset.",
   "Cases marked “Demo seed example” were written by the development team for demonstration and are not real verified industry experience.",
-  "The weak-area signal uses only your own saved scores and is a practice hint, not a validated competency measure.",
-  "The engine does not learn automatically. Ranking weights are fixed and listed above; changing them is a manual, deliberate update.",
 ];

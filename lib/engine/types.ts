@@ -34,6 +34,55 @@ export type EngineResponse = {
   reasons: Record<string, string[]>;
   narrative: { used: boolean; text?: string; reason?: string };
   limitations: string[];
+  sources: EngineSource[];
+  retrievalMode: "hybrid" | "keyword";
+};
+
+export type EngineSource = {
+  source_type: string;
+  source_id: string;
+  case_id: string | null;
+  title: string;
+  domain: string;
+  difficulty: string;
+  source_url: string | null;
+  relevance: number;
+  citation: string;
+};
+
+export type GeneratedScenario = {
+  title: string;
+  situation: string;
+  decision_prompt: string;
+  constraints: string[];
+};
+
+export type ScenarioResponse = {
+  scenario_id: string;
+  scenario: GeneratedScenario;
+  citations: EngineSource[];
+  difficulty: string;
+  adaptation_note: string;
+};
+
+export type ScenarioEvaluation = {
+  overall_score: number;
+  decision_quality: number;
+  evidence_use: number;
+  risk_awareness: number;
+  feasibility: number;
+  feedback: string;
+  strengths: string[];
+  gaps: string[];
+  next_step: string;
+};
+
+export type ModelReviewSignal = {
+  available: boolean;
+  reason?: string;
+  model_version?: string;
+  estimated_manager_acceptance?: number;
+  caution: string;
 };
 
 export const DIFFICULTY_LEVELS = ["Foundational", "Intermediate", "Advanced"] as const;

@@ -20,17 +20,20 @@ export default function CompanyRegistrationPage() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(DRAFT_KEY);
-      if (!raw) return;
-      const draft = JSON.parse(raw) as Partial<CompanyDraft>;
-      if (draft.companyName) setCompanyName(draft.companyName);
-      if (draft.industry) setIndustry(draft.industry);
-      if (draft.fullName) setFullName(draft.fullName);
-      if (draft.email) setEmail(draft.email);
-    } catch {
-      window.localStorage.removeItem(DRAFT_KEY);
-    }
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem(DRAFT_KEY);
+        if (!raw) return;
+        const draft = JSON.parse(raw) as Partial<CompanyDraft>;
+        if (draft.companyName) setCompanyName(draft.companyName);
+        if (draft.industry) setIndustry(draft.industry);
+        if (draft.fullName) setFullName(draft.fullName);
+        if (draft.email) setEmail(draft.email);
+      } catch {
+        window.localStorage.removeItem(DRAFT_KEY);
+      }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   function saveDraft() {

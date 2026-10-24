@@ -30,7 +30,9 @@ flowchart TB
         ORG["Company & Membership Foundation"]
         PROGRESS["Practice & Progress Data"]
     end
-    AI["🧠 Retrieval / Optional LLM"]
+    AI["🧠 Hybrid retrieval / Server-side LLM"]
+    VEC["🔎 pgvector + full-text search"]
+    KNOWLEDGE["🏢 Company-scoped knowledge"]
 
     U --> N
     N --> P
@@ -44,6 +46,9 @@ flowchart TB
     DB --> ORG
     DB --> PROGRESS
     API --> AI
+    AI --> VEC
+    VEC --> CASES
+    VEC --> KNOWLEDGE
     API --> DB
 ```
 
@@ -85,13 +90,17 @@ Database RPC functions perform protected workflow transitions, such as creating 
 
 Critical operations must validate the caller's identity, role, input, and permitted state transition on the server side.
 
-### 5. Learning Engine — Retrieval and Optional AI
+### 5. Learning Engine — Hybrid RAG and AI practice
 
-The learning engine accepts a problem and identifies potentially relevant experience from available cases.
+The engine uses PostgreSQL full-text search and, when `OPENAI_API_KEY` is configured, vector embeddings to retrieve approved cases and validated company knowledge. Case results cite the learning resource; web knowledge cites the allow-listed source URL. Company records are filtered by the caller's memberships inside a security-definer search function.
 
-Where configured, an external language model may help generate explanations or other AI-assisted outputs.
+When `ANTHROPIC_API_KEY` is configured, server-side calls generate fictional practice scenarios from retrieved evidence and evaluate learner responses against reviewer-approved case options and reasoning. Learner progress adapts scenario difficulty. Manager decisions and trusted-source excerpts can be added to a company workspace; learner feedback remains pending until a manager validates it.
 
-Retrieval relevance, model output quality, and limitations must be evaluated rather than assumed.
+No provider key is sent to the browser. Company text and learner answers are sent to configured model providers for AI operations. Retrieval and feedback do not update model weights or constitute fine-tuning. Evaluations and validated feedback are stored with provenance for future, separately validated datasets.
+
+The optional `ai-engine/` FastAPI service independently verifies forwarded Supabase user tokens and a private Next.js-to-service shared key. It fetches manager-approved company training data through privileged RPCs, trains per-company TF-IDF/logistic-regression classifiers, evaluates candidates on group-separated holdouts, and promotes only candidates passing configured quality gates. Its active manager-review classifier can return a clearly labeled experimental historical signal to `/engine`; it is not a learner grade. A separate worker periodically checks eligible companies and persists versioned model artifacts. RAG retrieval, adaptive difficulty, and supervised weight updates are separate capabilities.
+
+The launch-hardening migration adds atomic per-user/action quotas for the engine API. Trusted-source requests use DNS lookup, block special-use destinations, pin outbound HTTPS connections to a vetted public IPv4 result, and do not follow redirects. Production still requires hosting-level ingress rate limits and outbound egress restrictions, plus staging verification of database grants and cross-company isolation.
 
 ## 🔄 Expert-to-Learner Workflow
 
@@ -141,13 +150,13 @@ flowchart LR
     V -. Optional AI integration .-> L
 ```
 
-Deployment requires correctly configured environment variables, database migrations, authentication URLs, and production access policies.
+Deployment requires correctly configured environment variables, database migrations, authentication URLs, production access policies, and (when enabled) a separately deployed Python service with persistent private artifact storage and a scheduled worker. Set `AI_ENGINE_SERVICE_URL` and the same private `AI_ENGINE_INTERNAL_KEY` on the Next.js and Python services. Keep the Supabase service-role key only in the Python worker/trainer environment.
 
 ## 🚧 Current Architectural Boundaries
 
-The company onboarding foundation does not yet constitute a complete enterprise management system. Manager-facing invitation controls, email delivery, and full company-membership integration remain separate implementation tasks.
+The manager workspace now supports company membership, invitation management, and company-specific knowledge workflows. Email delivery is not configured; managers share invitation links privately. The case workflow's expert/reviewer `case_roles` and company workspace roles are distinct authorization systems.
 
-The retrieval and AI components also require ongoing evaluation against representative real-world scenarios.
+AI output quality and retrieval relevance require ongoing evaluation against representative real-world scenarios. Semantic search requires the `vector` PostgreSQL extension and indexed approved cases; case embeddings can be added from the manager workspace in batches.
 
 ## 🎯 Design Goal
 
