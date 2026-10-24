@@ -45,25 +45,30 @@ REVOKE ALL ON TABLE public.companies FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.company_memberships FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON TABLE public.company_invitations FROM PUBLIC, anon, authenticated;
 
--- A signed-in member can read only the company in which they have membership.
+-- Use a SECURITY DEFINER helper to avoid recursive membership policies.
+CREATE OR REPLACE FUNCTION public.is_company_member(p_company_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public, pg_temp
+SET row_security = off
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.company_memberships m
+    WHERE m.company_id = p_company_id AND m.user_id = (SELECT auth.uid())
+  );
+$$;
+REVOKE ALL ON FUNCTION public.is_company_member(uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_company_member(uuid) TO authenticated;
+
 CREATE POLICY "Members can read their companies"
 ON public.companies FOR SELECT TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.company_memberships m
-    WHERE m.company_id = companies.id AND m.user_id = (SELECT auth.uid())
-  )
-);
+USING (public.is_company_member(id));
 
 CREATE POLICY "Members can read company membership list"
 ON public.company_memberships FOR SELECT TO authenticated
-USING (
-  EXISTS (
-    SELECT 1 FROM public.company_memberships self
-    WHERE self.company_id = company_memberships.company_id
-      AND self.user_id = (SELECT auth.uid())
-  )
-);
+USING (public.is_company_member(company_id));
 
 -- No direct browser writes are granted to these tables. All mutations go through RPCs.
 GRANT SELECT ON public.companies, public.company_memberships TO authenticated;

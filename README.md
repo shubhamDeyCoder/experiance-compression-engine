@@ -1,213 +1,134 @@
-# ⚡ Experience Compression Engine
+# Experience Compression Engine
 
-<p align="center">
-  <strong>Compressing Years of Experience Through Technology & Behaviour</strong>
-</p>
+Experience Compression Engine turns practitioner judgment into reviewed learning cases. It is a Next.js App Router application backed by Supabase authentication and Row Level Security.
 
-<p align="center">
-  An AI-assisted learning platform that transforms expert knowledge into reviewed cases, practical decision-making, and reusable learning experiences.
-</p>
+## Milestone 2: Expert Case Capture & Review
 
-<p align="center">
-  <a href="experiance-compression-engine.vercel.app">🌐 Live Demo</a> •
-  <a href="https://github.com/shubhamDeyCoder/experiance-compression-engine.git">💻 Repository</a>
-</p>
+This milestone adds two protected workspaces:
 
-<p align="center">
-  <img src="https://img.shields.io/badge/Next.js-16-black?logo=next.js" alt="Next.js" />
-  <img src="https://img.shields.io/badge/TypeScript-Ready-blue?logo=typescript" alt="TypeScript" />
-  <img src="https://img.shields.io/badge/Supabase-Backend-3FCF8E?logo=supabase" alt="Supabase" />
-  <img src="https://img.shields.io/badge/Deployment-Vercel-black?logo=vercel" alt="Vercel" />
-  <img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="MIT License" />
-</p>
+- `/expert` — experts create private drafts, revise rejected work, and submit complete cases.
+- `/review` — reviewers see only submitted cases and can approve them for learners or request a revision with feedback.
 
----
+An approved case remains compatible with the learner dashboard. The expert workflow deliberately captures source material and decision rationale; adding scored learner answer choices is a separate scenario-design concern.
 
-## 🌟 The Vision
+### Workflow and security
 
-**What if learners could benefit from years of professional experience without having to learn every lesson the hard way?**
+1. An administrator assigns an authenticated user either the `expert` or `reviewer` role in `public.case_roles`.
+2. Experts use database functions to create and edit only their own drafts or rejected cases.
+3. Submission records an immutable snapshot. The case is read-only while it awaits review.
+4. A reviewer other than the author approves or rejects it. Approval sets `is_approved` so the existing learner dashboard can read it.
+5. Row Level Security limits authors to their work, reviewers to pending work, and learners to approved cases. Direct browser writes are revoked; workflow transitions occur only in security-definer functions with role and input checks.
 
-Traditional education teaches concepts, but practical problem-solving also depends on judgment, context, and lessons learned from real situations.
+The migrations retain submission and review snapshots in `expert_case_revisions` and enforce payload size, required fields, and field length limits server-side.
 
-Experience Compression Engine aims to bridge that gap by capturing practitioner experience, validating it through peer review, and turning it into structured learning resources.
+### Set up locally
 
-## 🚀 Key Features
-
-| Feature | Description |
-|---|---|
-| 🧑‍💻 Expert Workspace | Create, revise, and submit practical cases for review. |
-| 🛡️ Review Workflow | Review cases, provide feedback, and approve learning resources. |
-| 🎯 Learner Requests | Submit problems and track their progress toward publication. |
-| 🧠 AI-Assisted Retrieval | Find relevant cases and explain their relevance to a new problem. |
-| 📝 Decision-Based Practice | Practise scenarios and receive server-evaluated feedback. |
-| 📊 Learning Progress | Track practice attempts and learning activity. |
-| 🏢 Company Onboarding | Foundation for company workspaces, managers, and employee invitations. |
-
-> 🚧 Development note: Company onboarding is a foundation. The manager dashboard, invitation-management UI, and email delivery still require implementation.
-
-## 🔄 How It Works
-
-```mermaid
-flowchart TD
-    A["🧑‍🎓 Learner submits a problem"] --> B["🧑‍💻 Expert develops a case"]
-    B --> C["🛡️ Reviewer evaluates the case"]
-    C -->|Revision requested| B
-    C -->|Approved| D["📚 Published learning resource"]
-    D --> E["🧠 Retrieval and decision-based practice"]
-    E --> F["📈 Feedback and progress tracking"]
-```
-
-## 🧠 What Makes ECE Different?
-
-- **Experience-first learning:** Focuses on practical decisions, not just theoretical explanations.
-- **Human-reviewed knowledge:** Expert contributions pass through a review workflow before publication.
-- **Explainable retrieval:** Helps learners understand why a case may be relevant.
-- **Security by design:** Uses database-level authorization instead of trusting frontend restrictions.
-- **Built for growth:** Establishes a foundation for connecting individual expertise with organizational learning.
-
-## 🏗️ Technology Stack
-
-<p align="center">
-  <img src="https://skillicons.dev/icons?i=nextjs,react,ts,supabase,postgres,vercel" alt="Technology stack" />
-</p>
-
-| Layer | Technology |
-|---|---|
-| Frontend | Next.js App Router, React, TypeScript |
-| Authentication | Supabase Auth |
-| Database | PostgreSQL via Supabase |
-| Authorization | Row Level Security (RLS) |
-| Database operations | PostgreSQL RPC functions |
-| AI integration | Optional Anthropic API integration |
-| Deployment | Vercel |
-| Database migrations | Supabase CLI |
-
-## 🔐 Security Architecture
-
-Security and data integrity are central to the workflow.
-
-- 🔒 Row Level Security restricts access to authorized records.
-- 👤 Experts can manage only permitted cases.
-- 🛡️ Reviewers access cases awaiting review.
-- 📚 Learners access approved resources.
-- ⚙️ Database functions validate permissions and workflow transitions.
-- 🚫 Authors cannot approve their own submissions.
-- 🧾 Submission and review snapshots support traceability.
-
-These guarantees depend on the deployed database policies, grants, migrations, and functions being correctly configured.
-
-## ⚙️ Run Locally
-
-### Prerequisites
-
-- Node.js and npm
-- A Supabase project
-- Supabase CLI
-
-### 1. Clone the repository
+Create `.env.local` with your Supabase project values:
 
 ```bash
-git clone YOUR_GITHUB_REPOSITORY_URL
-cd experience-compression-engine
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=...
 ```
 
-### 2. Install dependencies
+Install and run the app:
 
 ```bash
 npm install
-```
-
-### 3. Configure environment variables
-
-Create `.env.local` in the project root:
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_publishable_key
-ANTHROPIC_API_KEY=your_anthropic_api_key
-```
-
-The Anthropic API key is optional if the external LLM integration is not being used.
-
-**Never commit `.env.local` or expose secret API keys in frontend code.**
-
-### 4. Apply database migrations
-
-Link your Supabase project, then run:
-
-```bash
-supabase login
-supabase link --project-ref YOUR_SUPABASE_PROJECT_REF
-supabase db push
-```
-
-Review pending migrations before applying them to a production database.
-
-### 5. Start the application
-
-```bash
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Apply database migrations to a linked project:
 
-### 6. Verify the production build
+```bash
+supabase db push
+```
+
+### Provision an expert or reviewer
+
+After the person has signed up, use the Supabase SQL editor as an administrator. Replace the placeholder UUID with the user ID from **Authentication → Users**:
+
+```sql
+insert into public.case_roles (user_id, role)
+values ('USER_UUID_HERE', 'expert');
+```
+
+Use `reviewer` instead to provision a review account. The table intentionally permits one workflow role per account; use separate accounts if someone needs to author and review, preserving the no-self-review control.
+
+### Checks
 
 ```bash
 npm run lint
 npm run build
 ```
 
-## ☁️ Deployment
+## Learner case submission (Batch 1)
 
-ECE is deployed on Vercel.
+Learners use **Submit a Case** on `/dashboard` (page: `/dashboard/submit`). Experts claim open requests on `/expert`,
+write the case, and a different reviewer approves it on `/review`. Approved cases open at `/resources/<id>`.
 
-1. Connect the GitHub repository to Vercel.
-2. Configure the required environment variables in Vercel project settings.
-3. Apply the required Supabase migrations.
-4. Deploy and inspect the build logs.
-5. Test authentication, case submission, review, and published-resource access on the live deployment.
+Apply the new migration before testing: `supabase db push` (or paste
+`supabase/migrations/20261024120000_learner_case_requests.sql` into the Supabase SQL Editor and run it once).
 
-**Live application:** [Open Experience Compression Engine](YOUR_VERCEL_URL)
+End-to-end test with three accounts (learner = any normal sign-up; expert and reviewer provisioned in `case_roles`):
+1. Learner: `/dashboard` -> Submit a Case -> fill the form -> success message; the case shows "Waiting for an expert".
+2. Expert: `/expert` -> "Open learner requests" -> Claim -> fill final solution and lessons learned -> Submit for review.
+3. Reviewer: `/review` -> Approve.
+4. Learner: `/dashboard/submit` -> status "Published" -> Open learning resource.
+5. Check: the expert account cannot approve its own case; the learner cannot open `/review` or `/expert`.
 
-## 🗺️ Roadmap
+See `IMPLEMENTATION_STATUS.md` for what is verified and what remains.
 
-- [x] Next.js and Supabase foundation
-- [x] Expert case capture and review workflow
-- [x] Learner case-request workflow foundation
-- [x] Database-backed access control
-- [x] Vercel deployment
-- [x] Company onboarding foundation
-- [ ] Complete manager dashboard and invitation UI
-- [ ] Implement invitation email delivery
-- [ ] Complete company membership and case-role integration
-- [ ] Evaluate retrieval quality against real-world scenarios
-- [ ] Improve recommendations using validated expert cases
-- [ ] Measure learning outcomes
+## Engine, practice and progress (Batch 2)
 
-## 🎬 Project Demo
+Apply BOTH migrations in order (`supabase db push`, or run each file once in the SQL Editor). Optionally run
+`supabase/seed_demo_cases.sql` to load three clearly labelled demo cases so retrieval has something to find.
+Copy `.env.example` to `.env.local` and fill the two Supabase values. `ANTHROPIC_API_KEY` is optional.
 
-_Add screenshots or a short GIF here after capturing the actual running application._
+Test additions (after the Batch 1 flow):
+1. Expert: the draft form now has "Scored decision options" - add 3 options, one scoring 80+, before submitting.
+2. Reviewer: score the four rubric criteria, then approve.
+3. Learner: `/dashboard` - answer a case (score and feedback come back from the server); use "Practise this case again".
+4. Learner: `/engine` - paste a problem; check matched cases, "Why this recommendation?" and the limitations box.
+5. Learner: `/resources/<id>` - write an answer and press "Check my answer".
+6. Learner: `/progress` - the metrics should reflect exactly the attempts you made.
 
-Recommended demo sequence:
+Architecture: Next.js pages -> Supabase RPC functions (all authorization and scoring in PostgreSQL) -> one API route
+(`/api/engine`) that calls retrieval with the caller's own token and optionally an LLM. Roles are granted only by an
+administrator in `case_roles`.
 
-1. Learner submits a problem.
-2. Expert creates and submits a case.
-3. Reviewer approves the case.
-4. Learner opens the published resource.
-5. The learning engine retrieves relevant experience.
+## Company onboarding foundation
 
-## 🎯 Built For
+The company onboarding migration adds `companies`, `company_memberships`, and `company_invitations`, plus secure RPCs for creating a company workspace, issuing invitations, and accepting invitations. It does not yet replace the existing case workflow's `case_roles` model or complete the manager dashboard; those are the next integration tasks.
 
-**Indian Engineering Week (IEW) Hackathon 2027**
+Apply the new migration after the existing migrations:
 
-**Problem Statement:** Experience Compression Engine
+```bash
+supabase db push
+```
 
-**Theme:** Compressing Years of Experience Through Technology & Behaviour
+New routes:
 
----
+- `/login` — enterprise-style sign-in and password reset.
+- `/company/register` — company and first-manager onboarding.
+- `/register?invite=TOKEN` — employee registration from a manager-issued invitation.
 
-<p align="center">
-  ⚡ Turning experience into structured knowledge.<br />
-  🧠 Turning knowledge into better decisions.
-</p>
+Invitation creation is exposed as a protected database RPC, but the manager-facing invitation UI and email delivery still need to be implemented. Do not manually insert company roles from the browser or disable RLS to make onboarding work.
+
+## Manager workspace and company invitations
+
+The manager dashboard is available at `/manager` after the first manager finishes company onboarding. Managers can:
+
+- view the company workspace and current membership list;
+- issue an email-specific invite for Beginner, Expert, or Reviewer;
+- copy the invitation URL to send it privately (email delivery is not configured in this milestone);
+- view recent invitation status and expiry dates.
+
+Apply the manager integration migration after the existing onboarding migration:
+
+```bash
+supabase db push
+```
+
+The migration adds a safe membership-check helper to prevent recursive RLS, a workspace-role lookup that supports multiple company roles, and a manager-only overview RPC. A person can receive separate Expert and Reviewer invitations for the same company. Existing `case_roles` assignments remain supported.
+
+Important: invitations are single-use, expire after seven days, and can only be accepted by an account whose verified email matches the invitation. Never share an invitation link publicly. This milestone creates a copyable link; it does not send email automatically.

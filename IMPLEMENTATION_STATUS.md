@@ -1,85 +1,27 @@
-# 📊 Experience Compression Engine — Implementation Status
+# Implementation status
 
-> **Project:** Experience Compression Engine (ECE)  
-> **Theme:** Compressing Years of Experience Through Technology & Behaviour  
->   
-> **Deployment:** Vercel
+## Implemented in the project files
 
-## 🚀 Project Overview
+- Learner case requests and expert claiming flow.
+- Expert case capture, scored decision options, and independent rubric review.
+- Learner practice, server-side scoring, written-answer feedback, recommendations, and progress metrics.
+- Supabase company onboarding with protected company creation and manager membership.
+- Employee registration through manager-issued invitations.
+- Manager dashboard at `/manager` with company overview, member list, role-specific invitations, and recent invitation status.
+- Workspace role lookup supports manager, learner, expert, and reviewer roles, including separate Expert and Reviewer memberships for one person.
+- Manager overview is returned by a security-definer RPC; the browser cannot directly write company or membership tables.
 
-Experience Compression Engine is an AI-assisted learning platform designed to capture practitioner experience, validate it through a review workflow, and make approved cases available for practical learning.
+## Must be run and tested against the actual project/database
 
-This document tracks the implementation scope, verification status, and remaining development work.
+1. `npm install`
+2. `npm run lint`
+3. `npm run build`
+4. `supabase db push` to apply any pending migrations, especially `20261025100000_manager_workspace.sql`.
+5. Test company registration, sign-out/sign-in, invitation creation, matching-email signup, invitation acceptance, expert submission, reviewer approval, and learner practice using separate test accounts.
 
-## ✅ Implemented Foundations
+## Known limitations
 
-The following capabilities have been described in the project implementation documentation. Confirm each against the current codebase and deployment before marking it verified.
-
-- [x] Next.js App Router application foundation.
-- [x] Supabase authentication integration.
-- [x] Expert case capture and review workflow foundation.
-- [x] Learner case-request workflow foundation.
-- [x] Database-backed authorization using PostgreSQL RLS and RPC functions.
-- [x] Submission and review snapshot infrastructure.
-- [x] Vercel deployment.
-- [x] Company onboarding database foundation.
-
-## 🧪 Functional Verification
-
-Update the status column only after testing the corresponding feature.
-
-| Feature | Status | Verification |
-|---|---|---|
-| Application deployment | Deployed; verify live health | Open production URL |
-| User authentication | Needs verification | Sign up, sign in, sign out |
-| Expert case submission | Needs verification | Submit a case for review |
-| Reviewer approval | Needs verification | Approve a case using another account |
-| Learner resource access | Needs verification | Open an approved resource |
-| Authorization and RLS | Needs verification | Test access using unauthorized accounts |
-| AI-assisted retrieval | Needs verification | Submit a problem and inspect retrieved cases |
-| Practice scoring | Needs verification | Submit an answer and inspect server feedback |
-| Progress tracking | Needs verification | Complete practice and verify recorded metrics |
-| Company onboarding | Foundation implemented | Test workspace creation and registration |
-| Invitation email delivery | Not yet implemented | Requires email delivery integration |
-
-## 🚧 Remaining Development Work
-
-- [ ] Complete and test the learner-to-expert-to-reviewer workflow.
-- [ ] Validate all role-based access restrictions against the production database.
-- [ ] Evaluate retrieval relevance and recommendation explanations.
-- [ ] Test scoring and progress tracking with representative scenarios.
-- [ ] Implement manager-facing invitation controls.
-- [ ] Implement invitation email delivery.
-- [ ] Integrate company membership with the existing case-role workflow.
-- [ ] Add automated tests for critical authorization and workflow operations.
-- [ ] Document deployment and database migration procedures.
-
-## 🔐 Security Verification
-
-- [ ] Confirm RLS is enabled on all relevant protected tables.
-- [ ] Verify database grants and RPC execution permissions.
-- [ ] Confirm experts cannot modify other users' cases.
-- [ ] Confirm reviewers cannot approve their own submissions.
-- [ ] Confirm learners cannot access protected expert or reviewer workspaces.
-- [ ] Check that secrets are not committed to Git.
-- [ ] Verify production environment variables and authentication redirect URLs.
-
-## 🏗️ Technical Stack
-
-- **Frontend:** Next.js App Router, React, TypeScript
-- **Authentication:** Supabase Auth
-- **Database:** PostgreSQL via Supabase
-- **Authorization:** Row Level Security and PostgreSQL RPC functions
-- **AI integration:** Optional Anthropic API integration
-- **Deployment:** Vercel
-- **Database migrations:** Supabase CLI
-
-## 📌 Verification Policy
-
-A feature is considered **implemented** when the relevant code exists, **verified** when its intended behavior has been tested, and **complete** when the required functionality and relevant tests are finished.
-
-Deployment alone does not establish that every feature works correctly in production.
-
-## 🎯 Project Vision
-
-ECE aims to transform individual professional experience into structured, reviewable knowledge that helps learners develop practical decision-making skills more efficiently.
+- Invitations are displayed as copyable URLs; automatic email delivery is not configured.
+- Retrieval uses database full-text search and heuristics rather than embeddings or a trained model.
+- Free-text evaluation is heuristic and should not be described as semantic understanding.
+- No automated end-to-end test suite has been added.

@@ -1,13 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, useReducedMotion } from "motion/react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+  motion,
+  AnimatePresence,
+  useReducedMotion,
+} from "motion/react";
 import { supabase } from "@/lib/supabase";
 import WorkspaceFooter from "@/components/WorkspaceFooter";
-import { resolveWorkspaceRole, workspaceHome } from "@/lib/workspaceRole";
+import {
+  resolveWorkspaceRole,
+  workspaceHome,
+} from "@/lib/workspaceRole";
 
 const ease = [0.22, 1, 0.36, 1] as const;
 
@@ -28,8 +35,10 @@ const itemVariants = {
   },
 };
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const invitationToken = searchParams.get("invite") ?? "";
   const reduceMotion = useReducedMotion();
 
   const [email, setEmail] = useState("");
@@ -45,7 +54,8 @@ export default function LoginPage() {
 
     async function checkSession() {
       try {
-        const { data, error: authError } = await supabase.auth.getUser();
+        const { data, error: authError } =
+          await supabase.auth.getUser();
 
         if (!active) return;
 
@@ -61,14 +71,42 @@ export default function LoginPage() {
           return;
         }
 
+        if (invitationToken) {
+          const { error: invitationError } =
+            await supabase.rpc("accept_company_invitation", {
+              p_token: invitationToken,
+            });
+
+          if (!active) return;
+
+          if (invitationError) {
+            setError(
+              `Your invitation could not be accepted: ${invitationError.message}`,
+            );
+            setCheckingSession(false);
+            return;
+          }
+
+          router.replace("/dashboard");
+          router.refresh();
+          return;
+        }
+
         const role = await resolveWorkspaceRole();
 
         if (active) {
           router.replace(workspaceHome(role));
           router.refresh();
         }
-      } catch {
-        if (active) setCheckingSession(false);
+      } catch (caught) {
+        if (active) {
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : "Could not check your session.",
+          );
+          setCheckingSession(false);
+        }
       }
     }
 
@@ -77,7 +115,7 @@ export default function LoginPage() {
     return () => {
       active = false;
     };
-  }, [router]);
+  }, [router, invitationToken]);
 
   async function handleSubmit(
     event: React.FormEvent<HTMLFormElement>,
@@ -91,11 +129,24 @@ export default function LoginPage() {
     try {
       const { error: signInError } =
         await supabase.auth.signInWithPassword({
-          email: email.trim(),
+          email: email.trim().toLowerCase(),
           password,
         });
 
       if (signInError) throw signInError;
+
+      if (invitationToken) {
+        const { error: invitationError } =
+          await supabase.rpc("accept_company_invitation", {
+            p_token: invitationToken,
+          });
+
+        if (invitationError) throw invitationError;
+
+        router.replace("/dashboard");
+        router.refresh();
+        return;
+      }
 
       const role = await resolveWorkspaceRole();
 
@@ -126,10 +177,20 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const redirectUrl = new URL(
+        "/login",
+        window.location.origin,
+      );
+
+      if (invitationToken) {
+        redirectUrl.searchParams.set("invite", invitationToken);
+      }
+
       const { error: resetError } =
-        await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: `${window.location.origin}/login`,
-        });
+        await supabase.auth.resetPasswordForEmail(
+          email.trim().toLowerCase(),
+          { redirectTo: redirectUrl.toString() },
+        );
 
       if (resetError) throw resetError;
 
@@ -151,9 +212,12 @@ export default function LoginPage() {
     ? { duration: 0 }
     : { duration: 0.85, ease };
 
+  const registrationHref = invitationToken
+    ? `/register?invite=${encodeURIComponent(invitationToken)}`
+    : "/register";
+
   return (
     <main className="ece-login relative flex min-h-screen flex-col overflow-hidden text-white">
-      {/* Ambient animated background */}
       <div className="ece-login-grid pointer-events-none absolute inset-0" />
 
       <motion.div
@@ -196,12 +260,15 @@ export default function LoginPage() {
 
       <div className="relative z-10 mx-auto flex w-full max-w-[1440px] flex-1 items-center px-4 py-8 sm:px-8 lg:px-12">
         <motion.div
-          initial={reduceMotion ? false : { opacity: 0, y: 24, scale: 0.985 }}
+          initial={
+            reduceMotion
+              ? false
+              : { opacity: 0, y: 24, scale: 0.985 }
+          }
           animate={{ opacity: 1, y: 0, scale: 1 }}
           transition={reveal}
           className="ece-login-card grid w-full overflow-hidden rounded-[30px] lg:min-h-[690px] lg:grid-cols-[1.08fr_0.92fr]"
         >
-          {/* Left: Brand experience */}
           <section className="ece-login-hero relative hidden flex-col justify-between overflow-hidden p-10 lg:flex xl:p-14">
             <div className="ece-hero-light ece-hero-light-one" />
             <div className="ece-hero-light ece-hero-light-two" />
@@ -213,36 +280,35 @@ export default function LoginPage() {
               className="relative z-10"
             >
               <motion.div variants={itemVariants}>
-                
-<div className="relative z-10 flex items-center justify-between gap-4">
-  <Link href="/" className="group inline-flex items-center gap-3">
-    <div>
-      <Image
-  src="/ece-logo.png"
-  alt="Experience Compression Engine"
-  width={44}
-  height={44}
-  priority
-/>
-    </div>
+                <div className="relative z-10 flex items-center justify-between gap-4">
+                  <Link
+                    href="/"
+                    className="group inline-flex items-center gap-3"
+                  >
+                    <Image
+                      src="/ece-logo.png"
+                      alt="Experience Compression Engine"
+                      width={44}
+                      height={44}
+                      priority
+                    />
 
-    <span className="text-xs font-bold tracking-[0.18em] text-white/90">
-      EXPERIENCE
-      <br />
-      COMPRESSION ENGINE
-    </span>
-  </Link>
+                    <span className="text-xs font-bold tracking-[0.18em] text-white/90">
+                      EXPERIENCE
+                      <br />
+                      COMPRESSION ENGINE
+                    </span>
+                  </Link>
 
-  <Link
-    href="/"
-    aria-label="Return to homepage"
-    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-slate-300 transition duration-300 hover:border-[#8ee2c4]/50 hover:bg-[#8ee2c4]/10 hover:text-white"
-  >
-    <span aria-hidden="true">←</span>
-    Back to home
-  </Link>
-</div>
-
+                  <Link
+                    href="/"
+                    aria-label="Return to homepage"
+                    className="inline-flex shrink-0 items-center gap-2 rounded-full border border-white/15 bg-white/[0.04] px-4 py-2.5 text-xs font-medium text-slate-300 transition duration-300 hover:border-[#8ee2c4]/50 hover:bg-[#8ee2c4]/10 hover:text-white"
+                  >
+                    <span aria-hidden="true">←</span>
+                    Back to home
+                  </Link>
+                </div>
               </motion.div>
 
               <div className="mt-20 max-w-xl xl:mt-24">
@@ -279,25 +345,42 @@ export default function LoginPage() {
                   className="mt-11 grid grid-cols-3 gap-3"
                 >
                   {[
-                    { number: "01", title: "Capture", detail: "Expert knowledge" },
-                    { number: "02", title: "Practice", detail: "Real scenarios" },
-                    { number: "03", title: "Improve", detail: "Proven skills" },
+                    {
+                      number: "01",
+                      title: "Capture",
+                      detail: "Expert knowledge",
+                    },
+                    {
+                      number: "02",
+                      title: "Practice",
+                      detail: "Real scenarios",
+                    },
+                    {
+                      number: "03",
+                      title: "Improve",
+                      detail: "Proven skills",
+                    },
                   ].map((step) => (
                     <motion.div
                       key={step.number}
                       whileHover={
                         reduceMotion
                           ? {}
-                          : { y: -5, borderColor: "rgba(167,233,210,0.4)" }
+                          : {
+                              y: -5,
+                              borderColor: "rgba(167,233,210,0.4)",
+                            }
                       }
                       className="ece-login-step rounded-2xl p-4"
                     >
                       <span className="text-[10px] font-bold tracking-[0.2em] text-[#a7e9d2]">
                         {step.number}
                       </span>
+
                       <h3 className="mt-4 text-sm font-semibold text-white">
                         {step.title}
                       </h3>
+
                       <p className="mt-1.5 text-[10px] leading-4 text-slate-400">
                         {step.detail}
                       </p>
@@ -314,6 +397,7 @@ export default function LoginPage() {
               className="relative z-10 flex items-center justify-between gap-4 text-[10px] tracking-wide text-slate-500"
             >
               <span>BUILT FOR LEARNING THAT MOVES YOU FORWARD</span>
+
               <span className="flex items-center gap-2">
                 <span className="h-1.5 w-1.5 rounded-full bg-[#a7e9d2]" />
                 EXPERT-GUIDED
@@ -321,7 +405,6 @@ export default function LoginPage() {
             </motion.div>
           </section>
 
-          {/* Right: Login form */}
           <section className="ece-login-form flex items-center justify-center px-6 py-10 sm:px-10 lg:px-12 xl:px-16">
             <div className="w-full max-w-[390px]">
               <motion.div
@@ -357,11 +440,14 @@ export default function LoginPage() {
                     </p>
 
                     <h2 className="mt-3 text-[34px] font-medium tracking-[-0.045em] text-white sm:text-[38px]">
-                      Welcome back<span className="text-[#8ee2c4]">.</span>
+                      Welcome back
+                      <span className="text-[#8ee2c4]">.</span>
                     </h2>
 
                     <p className="mt-3 text-sm leading-6 text-slate-400">
-                      Pick up where your next breakthrough begins.
+                      {invitationToken
+                        ? "Sign in with the email address your manager invited."
+                        : "Pick up where your next breakthrough begins."}
                     </p>
                   </div>
                 </motion.div>
@@ -381,7 +467,9 @@ export default function LoginPage() {
                   ) : (
                     <motion.form
                       key="login"
-                      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
+                      initial={
+                        reduceMotion ? false : { opacity: 0, y: 12 }
+                      }
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.45, ease }}
                       onSubmit={handleSubmit}
@@ -402,7 +490,9 @@ export default function LoginPage() {
                           autoComplete="email"
                           required
                           value={email}
-                          onChange={(event) => setEmail(event.target.value)}
+                          onChange={(event) =>
+                            setEmail(event.target.value)
+                          }
                           placeholder="you@company.com"
                           className="ece-login-input w-full rounded-xl px-4 py-3.5 text-sm text-white outline-none transition duration-300 placeholder:text-slate-600"
                         />
@@ -435,15 +525,21 @@ export default function LoginPage() {
                             autoComplete="current-password"
                             required
                             value={password}
-                            onChange={(event) => setPassword(event.target.value)}
+                            onChange={(event) =>
+                              setPassword(event.target.value)
+                            }
                             placeholder="Enter your password"
                             className="ece-login-input w-full rounded-xl px-4 py-3.5 pr-[76px] text-sm text-white outline-none transition duration-300 placeholder:text-slate-600"
                           />
 
                           <button
                             type="button"
-                            onClick={() => setShowPassword((current) => !current)}
-                            aria-label={showPassword ? "Hide password" : "Show password"}
+                            onClick={() =>
+                              setShowPassword((current) => !current)
+                            }
+                            aria-label={
+                              showPassword ? "Hide password" : "Show password"
+                            }
                             className="absolute inset-y-0 right-4 text-[11px] font-semibold text-slate-400 transition hover:text-[#baf4dc]"
                           >
                             {showPassword ? "Hide" : "Show"}
@@ -483,22 +579,34 @@ export default function LoginPage() {
                         type="submit"
                         disabled={loading}
                         whileHover={
-                          reduceMotion || loading ? {} : { y: -2, scale: 1.005 }
+                          reduceMotion || loading
+                            ? {}
+                            : { y: -2, scale: 1.005 }
                         }
-                        whileTap={reduceMotion || loading ? {} : { scale: 0.985 }}
+                        whileTap={
+                          reduceMotion || loading
+                            ? {}
+                            : { scale: 0.985 }
+                        }
                         className="ece-login-submit group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-4 text-sm font-bold text-[#092522] transition disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <span className="ece-button-shimmer" />
 
                         <span className="relative z-10">
-                          {loading ? "Please wait…" : "Sign in to your workspace"}
+                          {loading
+                            ? "Please wait…"
+                            : invitationToken
+                              ? "Sign in and join company"
+                              : "Sign in to your workspace"}
                         </span>
 
                         {!loading && (
                           <motion.span
                             aria-hidden="true"
                             className="relative z-10"
-                            animate={reduceMotion ? {} : { x: [0, 4, 0] }}
+                            animate={
+                              reduceMotion ? {} : { x: [0, 4, 0] }
+                            }
                             transition={{
                               duration: 1.5,
                               repeat: Infinity,
@@ -544,7 +652,7 @@ export default function LoginPage() {
 
                   <motion.div variants={itemVariants}>
                     <Link
-                      href="/register"
+                      href={registrationHref}
                       className="ece-login-link flex min-h-12 items-center justify-center rounded-xl px-3 py-3 text-center text-xs font-semibold text-slate-200 transition duration-300"
                     >
                       Join a company
@@ -572,5 +680,19 @@ export default function LoginPage() {
         <WorkspaceFooter />
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="ece-login flex min-h-screen items-center justify-center text-white">
+          Checking your session…
+        </main>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }

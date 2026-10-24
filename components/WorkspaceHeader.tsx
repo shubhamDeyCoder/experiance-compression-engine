@@ -1,14 +1,20 @@
 "use client";
-import Image from "next/image";
+
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { resolveWorkspaceRole, WorkspaceRole, workspaceHome } from "@/lib/workspaceRole";
+import { resolveWorkspaceRole, resolveWorkspaceRoles, WorkspaceRole, workspaceHome } from "@/lib/workspaceRole";
 
 type WorkspaceLink = { label: string; href: string };
 
 const linksByRole: Record<WorkspaceRole, WorkspaceLink[]> = {
+  manager: [
+    { label: "Company dashboard", href: "/manager" },
+    { label: "Expert cases", href: "/expert" },
+    { label: "Review queue", href: "/review" },
+    { label: "Learner workspace", href: "/dashboard" },
+  ],
   reviewer: [
     { label: "Review queue", href: "/review" },
     { label: "Learner workspace", href: "/dashboard" },
@@ -31,6 +37,7 @@ const linksByRole: Record<WorkspaceRole, WorkspaceLink[]> = {
 };
 
 const roleLabels: Record<WorkspaceRole, string> = {
+  manager: "Manager",
   reviewer: "Reviewer",
   expert: "Expert",
   learner: "Learner",
@@ -40,6 +47,7 @@ export default function WorkspaceHeader() {
   const pathname = usePathname();
   const router = useRouter();
   const [role, setRole] = useState<WorkspaceRole | null>(null);
+  const [roles, setRoles] = useState<WorkspaceRole[]>([]);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
   const [signingOut, setSigningOut] = useState(false);
@@ -61,8 +69,8 @@ export default function WorkspaceHeader() {
 
       setEmail(data.user.email ?? "");
       try {
-        const userRole = await resolveWorkspaceRole();
-        if (active) setRole(userRole);
+        const [userRole, userRoles] = await Promise.all([resolveWorkspaceRole(), resolveWorkspaceRoles()]);
+        if (active) { setRole(userRole); setRoles(userRoles); }
       } catch (caught) {
         if (active) {
           setError(caught instanceof Error ? caught.message : "Could not load your account role.");
@@ -90,24 +98,17 @@ export default function WorkspaceHeader() {
     router.refresh();
   }
 
-  const links = role ? linksByRole[role] : [];
+  const links = [...new Map<string, WorkspaceLink>(roles.flatMap((userRole) => linksByRole[userRole]).map((link) => [link.href, link] as const)).values()];
   const home = role ? workspaceHome(role) : "/";
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#08111f]/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center justify-between gap-4">
-          
           <Link href={home} className="flex min-w-0 items-center gap-3">
-            <Image
-  src="/ece-logo.png"
-  alt="Experience Compression Engine logo"
-  width={44}
-  height={44}
-  priority
-  className="h-11 w-11 shrink-0  object-contain"
-  
-/>
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#69e2bd] text-lg font-black text-[#08111f]">
+              E
+            </span>
             <span className="min-w-0">
               <span className="block text-sm font-bold tracking-wide">
                 Experience<span className="text-[#69e2bd]">Engine</span>
