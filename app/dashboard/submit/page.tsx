@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import WorkspaceHeader from "@/components/WorkspaceHeader";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 import { formatDate } from "@/lib/cases";
 import {
   DIFFICULTIES,
@@ -82,20 +84,8 @@ export default function SubmitCasePage() {
   const count = (key: keyof LearnerCasePayload) => `${payload[key].length}/${LEARNER_CASE_LIMITS[key][1]}`;
 
   return (
-    <main className="min-h-screen bg-[#08111f] text-white">
-      <header className="border-b border-white/10 bg-[#0b1523]">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <Link href="/" className="font-bold tracking-wide">
-            EXPERIENCE <span className="text-[#69e2bd]">ENGINE</span>
-          </Link>
-          <nav className="flex gap-3 text-sm">
-            <Link className="text-slate-300 hover:text-[#69e2bd]" href="/dashboard">
-              ← Learner workspace
-            </Link>
-          </nav>
-        </div>
-      </header>
-
+    <main className="flex min-h-screen flex-col bg-[#08111f] text-white">
+      <WorkspaceHeader />
       <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 sm:py-12 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <section>
           <p className="text-xs font-semibold tracking-[0.22em] text-[#69e2bd]">SUBMIT A CASE</p>
@@ -230,6 +220,7 @@ export default function SubmitCasePage() {
           </div>
         </aside>
       </div>
+      <WorkspaceFooter />
     </main>
   );
 }

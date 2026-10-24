@@ -7,6 +7,8 @@ import { CaseStatusBadge } from "@/components/CaseStatusBadge";
 import { CaseOption, emptyCasePayload, ExpertCase, CasePayload, formatDate } from "@/lib/cases";
 import { supabase } from "@/lib/supabase";
 import { OpenCaseRequest } from "@/lib/learnerCases";
+import WorkspaceHeader from "@/components/WorkspaceHeader";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 
 const fields: Array<{ key: keyof CasePayload; label: string; hint: string; required?: boolean; rows?: number }> = [
   { key: "title", label: "Case title", hint: "A concise, searchable name.", required: true },
@@ -131,7 +133,7 @@ export default function ExpertCasesPage() {
   </PageShell>;
 }
 
-function PageShell({ children }: { children: React.ReactNode }) { return <main className="min-h-screen bg-[#08111f] text-white"><header className="border-b border-white/10 bg-[#0b1523]"><div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8"><Link href="/" className="font-bold tracking-wide">EXPERIENCE <span className="text-[#69e2bd]">ENGINE</span></Link><nav className="flex gap-3 text-sm"><Link className="text-slate-300 hover:text-[#69e2bd]" href="/dashboard">Learner workspace</Link><Link className="text-slate-300 hover:text-[#69e2bd]" href="/review">Review queue</Link></nav></div></header><div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">{children}</div></main>; }
+function PageShell({ children }: { children: React.ReactNode }) { return <main className="flex min-h-screen flex-col bg-[#08111f] text-white"><WorkspaceHeader /><div className="mx-auto w-full max-w-7xl flex-1 px-5 py-10 sm:px-8 sm:py-12">{children}</div><WorkspaceFooter /></main>; }
 function TextField({ label, hint, value, onChange, required, rows }: { label: string; hint: string; value: string; onChange: (value: string) => void; required?: boolean; rows?: number }) { const classes = "mt-2 w-full rounded-xl border border-white/10 bg-[#0b1523] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#69e2bd]"; return <label className="block text-sm font-medium text-slate-200"><span>{label}{required && <span className="text-[#69e2bd]"> *</span>}</span>{rows ? <textarea rows={rows} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={classes} /> : <input required={required} value={value} onChange={(event) => onChange(event.target.value)} className={classes} />}<span className="mt-1.5 block text-xs font-normal leading-5 text-slate-500">{hint}</span></label>; }
 function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) { return <label className="block text-sm font-medium text-slate-200">{label}<select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-[#0b1523] px-4 py-3 text-sm text-white outline-none focus:border-[#69e2bd]">{options.map((option) => <option key={option} value={option}>{option || "Choose an experience level"}</option>)}</select></label>; }
 function AccessError({ error }: { error: string }) { return <><h1 className="text-2xl font-semibold">Expert access required</h1><p className="mt-3 max-w-xl leading-7 text-slate-400">{error}</p><Link href="/dashboard" className="mt-6 inline-block rounded-full bg-[#69e2bd] px-5 py-3 text-sm font-bold text-[#08111f]">Go to learner workspace</Link></>; }

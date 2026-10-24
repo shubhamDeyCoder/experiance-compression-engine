@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import WorkspaceHeader from "@/components/WorkspaceHeader";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 
 type Progress = {
   attempts_total: number;
@@ -49,17 +51,8 @@ export default function ProgressPage() {
   const weakAreas = progress?.domains.filter((d) => d.avg_latest_score < 70) ?? [];
 
   return (
-    <main className="min-h-screen bg-[#08111f] text-white">
-      <header className="border-b border-white/10 bg-[#0b1523]">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-5 py-5 sm:px-8">
-          <Link href="/" className="font-bold tracking-wide">EXPERIENCE <span className="text-[#69e2bd]">ENGINE</span></Link>
-          <nav className="flex gap-4 text-sm">
-            <Link className="text-slate-300 hover:text-[#69e2bd]" href="/dashboard">Workspace</Link>
-            <Link className="text-slate-300 hover:text-[#69e2bd]" href="/engine">Engine</Link>
-          </nav>
-        </div>
-      </header>
-
+    <main className="flex min-h-screen flex-col bg-[#08111f] text-white">
+      <WorkspaceHeader />
       <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-12">
         <p className="text-xs font-semibold tracking-[0.22em] text-[#69e2bd]">MY PROGRESS</p>
         <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">What your saved results show.</h1>
@@ -126,6 +119,7 @@ export default function ProgressPage() {
           </div>
         )}
       </div>
+      <WorkspaceFooter />
     </main>
   );
 }

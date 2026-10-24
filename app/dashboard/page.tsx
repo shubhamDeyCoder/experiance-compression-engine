@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import WorkspaceHeader from "@/components/WorkspaceHeader";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 
 type ScenarioOption = { text: string };
 type AttemptResult = { out_score: number; out_feedback: string; out_best_option: number; out_best_feedback: string };
@@ -187,8 +189,9 @@ export default function DashboardPage() {
   if (loadingProgress) return <LoadingScreen message="Restoring your learning progress..." />;
   if (scenarioError) return <ErrorScreen title="Could not load scenarios" error={scenarioError} />;
   if (scenarios.length === 0) return (
-    <main className="min-h-screen bg-[#08111f] p-8 text-white">
-      <div className="mx-auto max-w-2xl">
+    <main className="flex min-h-screen flex-col bg-[#08111f] text-white">
+      <WorkspaceHeader />
+      <div className="mx-auto w-full max-w-2xl flex-1 p-8">
         <h1 className="text-2xl font-semibold">No approved scenarios yet</h1>
         <p className="mt-3 leading-7 text-slate-400">Practice scenarios appear here once an expert has answered a case and an independent reviewer has approved it. You can start that process by submitting your own case.</p>
         <div className="mt-6 flex flex-wrap gap-3">
@@ -196,53 +199,14 @@ export default function DashboardPage() {
           <Link href="/" className="rounded-xl border border-white/10 px-6 py-3.5 text-sm text-slate-300 hover:text-[#69e2bd]">← Home</Link>
         </div>
       </div>
+      <WorkspaceFooter />
     </main>
   );
 
   
   return (
-    <main className="min-h-screen bg-[#08111f] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#08111f]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#69e2bd] text-xl font-black text-[#08111f]">
-              E
-            </span>
-            <span>
-              <span className="block text-sm font-bold tracking-wide">
-                Experience<span className="text-[#69e2bd]">Engine</span>
-              </span>
-              <span className="mt-1 block text-[10px] tracking-[0.15em] text-slate-500">
-                LEARNER WORKSPACE
-              </span>
-            </span>
-          </Link>
-
-          <nav aria-label="Workspace navigation" className="flex items-center gap-2">
-            <Link href="/engine" className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white md:block">Engine</Link>
-            <Link href="/progress" className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white md:block">My progress</Link>
-            <Link
-              href="/dashboard/submit"
-              className="rounded-xl bg-[#69e2bd] px-4 py-2.5 text-sm font-bold text-[#08111f] transition hover:bg-[#91f3d4]"
-            >
-              Submit a Case
-            </Link>
-            <Link
-              href="/demo"
-              className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white sm:block"
-            >
-              Explore demo
-            </Link>
-            <Link
-              href="/"
-              className="rounded-xl border border-white/10 px-4 py-2.5 text-sm text-slate-300 transition hover:border-[#69e2bd]/40 hover:text-[#69e2bd]"
-            >
-              ← Home
-            </Link>
-          </nav>
-        </div>
-      </header>
-
+    <main className="flex min-h-screen flex-col bg-[#08111f] text-white">
+      <WorkspaceHeader />
       <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8 sm:py-10">
         {/* Welcome */}
         <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101c2b] p-6 sm:p-9 lg:p-10">
@@ -686,9 +650,9 @@ export default function DashboardPage() {
           </section>
         </div>
       </div>
+      <WorkspaceFooter />
     </main>
   );
-
 }
 
 function AnalyticsSummary({ attempts, averageAttemptScore, domainSummary }: { attempts: LearnerAttempt[]; averageAttemptScore: number; domainSummary: { domain: string; average: number; count: number }[] }) {

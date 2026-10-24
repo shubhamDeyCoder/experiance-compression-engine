@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 
 const scenarios = [
   {
@@ -126,7 +127,7 @@ export default function DemoPage() {
       : 0;
 
   return (
-    <main className="min-h-screen bg-[#07111f] px-5 py-8 text-white md:px-12">
+    <main className="flex min-h-screen flex-col bg-[#07111f] px-5 py-8 text-white md:px-12">
       <header className="mx-auto flex max-w-6xl items-center justify-between gap-4">
         <Link href="/" className="text-lg font-bold">
           Experience<span className="text-emerald-400">Engine</span>
@@ -140,7 +141,7 @@ export default function DemoPage() {
         </Link>
       </header>
 
-      <section className="mx-auto mt-12 max-w-6xl">
+      <section className="mx-auto mt-12 w-full max-w-6xl flex-1">
         <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">
           Interactive product demo
         </p>
@@ -291,6 +292,7 @@ export default function DemoPage() {
           Public demo · Example scenarios · Progress resets when you refresh
         </p>
       </section>
+      <WorkspaceFooter />
     </main>
   );
 }

@@ -5,6 +5,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { DIFFICULTY_LEVELS, EngineResponse, RELEVANCE_WEIGHTS } from "@/lib/engine/types";
+import WorkspaceHeader from "@/components/WorkspaceHeader";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 
 const inputClasses =
   "mt-2 w-full rounded-xl border border-white/10 bg-[#0b1523] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#69e2bd]";
@@ -54,19 +56,8 @@ export default function EnginePage() {
   }
 
   return (
-    <main className="min-h-screen bg-[#08111f] text-white">
-      <header className="border-b border-white/10 bg-[#0b1523]">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-8">
-          <Link href="/" className="font-bold tracking-wide">
-            EXPERIENCE <span className="text-[#69e2bd]">ENGINE</span>
-          </Link>
-          <nav className="flex gap-4 text-sm">
-            <Link className="text-slate-300 hover:text-[#69e2bd]" href="/dashboard">Workspace</Link>
-            <Link className="text-slate-300 hover:text-[#69e2bd]" href="/progress">My progress</Link>
-          </nav>
-        </div>
-      </header>
-
+    <main className="flex min-h-screen flex-col bg-[#08111f] text-white">
+      <WorkspaceHeader />
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-12">
         <p className="text-xs font-semibold tracking-[0.22em] text-[#69e2bd]">EXPERIENCE MATCHING</p>
         <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Find verified experience for your problem.</h1>
@@ -219,6 +210,7 @@ export default function EnginePage() {
           <p className="mt-4 text-xs leading-5 text-slate-500">Compress the learning curve, not the truth: this practises expert-style decisions faster, it does not replace years of experience.</p>
         </section>
       </div>
+      <WorkspaceFooter />
     </main>
   );
 }

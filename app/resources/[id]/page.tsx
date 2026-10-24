@@ -2,10 +2,11 @@
 
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import WorkspaceHeader from "@/components/WorkspaceHeader";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
 
 type Resource = {
   id: string;
@@ -93,18 +94,8 @@ export default function ResourcePage() {
     : [];
 
   return (
-    <main className="min-h-screen bg-[#08111f] text-white">
-      <header className="border-b border-white/10 bg-[#0b1523]">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-5 py-5 sm:px-8">
-          <Link href="/" className="font-bold tracking-wide">
-            EXPERIENCE <span className="text-[#69e2bd]">ENGINE</span>
-          </Link>
-          <Link href="/dashboard/submit" className="text-sm text-slate-300 hover:text-[#69e2bd]">
-            ← My cases
-          </Link>
-        </div>
-      </header>
-
+    <main className="flex min-h-screen flex-col bg-[#08111f] text-white">
+      <WorkspaceHeader />
       <div className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-12">
         {loading && <p className="text-slate-300">Loading learning resource…</p>}
         {!loading && error && (
@@ -178,6 +169,7 @@ export default function ResourcePage() {
           </article>
         )}
       </div>
+      <WorkspaceFooter />
     </main>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import WorkspaceFooter from "@/components/WorkspaceFooter";
+import { resolveWorkspaceRole, workspaceHome } from "@/lib/workspaceRole";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,8 +14,45 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [checkingSession, setCheckingSession] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function redirectIfSignedIn() {
+      const { data, error: userError } = await supabase.auth.getUser();
+      if (!active) return;
+      if (userError) {
+        setError(userError.message);
+        setCheckingSession(false);
+        return;
+      }
+      if (!data.user) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const role = await resolveWorkspaceRole();
+        if (active) {
+          router.replace(workspaceHome(role));
+          router.refresh();
+        }
+      } catch (caught) {
+        if (active) {
+          setError(caught instanceof Error ? caught.message : "Could not load your account role.");
+          setCheckingSession(false);
+        }
+      }
+    }
+
+    void redirectIfSignedIn();
+    return () => {
+      active = false;
+    };
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -32,7 +71,8 @@ export default function LoginPage() {
         if (error) throw error;
 
         if (data.session) {
-          router.push("/dashboard");
+          const role = await resolveWorkspaceRole();
+          router.replace(workspaceHome(role));
           router.refresh();
         } else {
           setMessage(
@@ -47,7 +87,8 @@ export default function LoginPage() {
 
         if (error) throw error;
 
-        router.push("/dashboard");
+        const role = await resolveWorkspaceRole();
+        router.replace(workspaceHome(role));
         router.refresh();
       }
     } catch (err) {
@@ -60,8 +101,12 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#07111f] px-4 py-10 text-white">
-      <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#101d2d] p-8 shadow-2xl">
+    <main className="flex min-h-screen flex-col bg-[#07111f] px-4 pt-10 text-white">
+      <div className="flex flex-1 items-center justify-center pb-10">
+        {checkingSession ? (
+          <p className="text-sm text-slate-300">Checking your account…</p>
+        ) : (
+          <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#101d2d] p-8 shadow-2xl">
         <Link
           href="/"
           className="text-sm text-emerald-300 hover:text-emerald-200"
@@ -81,7 +126,7 @@ export default function LoginPage() {
           <p className="mt-3 text-sm leading-6 text-slate-400">
             {isSignUp
               ? "Start learning through expert-guided industry scenarios."
-              : "Log in to continue your learning journey."}
+              : "Log in and we’ll open the right workspace for your account."}
           </p>
         </div>
 
@@ -172,7 +217,10 @@ export default function LoginPage() {
             {isSignUp ? "Log in" : "Sign up"}
           </button>
         </p>
+          </div>
+        )}
       </div>
+      <WorkspaceFooter />
     </main>
   );
 }
