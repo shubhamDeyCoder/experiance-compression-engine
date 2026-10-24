@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-type ScenarioOption = { text: string; score: number; feedback: string };
+type ScenarioOption = { text: string };
+type AttemptResult = { out_score: number; out_feedback: string; out_best_option: number; out_best_feedback: string };
 type Scenario = {
   id: string;
   title: string;
@@ -14,6 +15,7 @@ type Scenario = {
   situation: string;
   question: string;
   options: ScenarioOption[];
+  is_seed: boolean;
 };
 type LearnerAttempt = {
   case_id: string;
@@ -39,6 +41,8 @@ export default function DashboardPage() {
   const [scenarioIndex, setScenarioIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [lastBest, setLastBest] = useState<{ caseId: string; option: number; feedback: string } | null>(null);
   const [attempts, setAttempts] = useState<LearnerAttempt[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
@@ -53,8 +57,8 @@ export default function DashboardPage() {
   const latestAttempts = useMemo(() => getLatestAttempts(attempts), [attempts]);
   const scenario = scenarios[scenarioIndex];
   const restoredAttempt = scenario ? latestAttempts.get(scenario.id) : undefined;
-  const caseCompleted = submitted || Boolean(restoredAttempt);
-  const displayedOption = restoredAttempt?.selected_option ?? selectedOption;
+  const caseCompleted = !retrying && (submitted || Boolean(restoredAttempt));
+  const displayedOption = retrying ? selectedOption : (restoredAttempt?.selected_option ?? selectedOption);
   const selected = displayedOption === null || !scenario ? null : scenario.options[displayedOption];
   const latestResults = useMemo(
     () => scenarios.map((item) => {
@@ -82,7 +86,7 @@ export default function DashboardPage() {
   useEffect(() => {
     let active = true;
     async function loadScenarios() {
-      const { data, error } = await supabase.from("expert_cases").select("id, title, domain, difficulty, situation, question, options").eq("is_approved", true).order("created_at", { ascending: true });
+      const { data, error } = await supabase.rpc("list_practice_cases");
       if (!active) return;
       if (error) setScenarioError(error.message);
       else setScenarios((data ?? []) as Scenario[]);
@@ -141,6 +145,8 @@ export default function DashboardPage() {
     setScenarioIndex(index);
     setSelectedOption(previousAttempt?.selected_option ?? null);
     setSubmitted(Boolean(previousAttempt));
+    setRetrying(false);
+    setLastBest(null);
     setSaveError("");
   }
   function nextScenario() {
@@ -156,13 +162,17 @@ export default function DashboardPage() {
         if (isMounted.current) setSaveError("Your session has expired. Please sign in again.");
         return;
       }
-      const { error: insertError } = await supabase.from("learner_attempts").insert({ learner_id: user.id, case_id: scenario.id, selected_option: selectedOption, score: selected.score, feedback: selected.feedback });
-      if (insertError) {
-        if (isMounted.current) setSaveError(insertError.message);
+      // The score is calculated on the server from the expert's reviewed options.
+      const { data: scored, error: insertError } = await supabase.rpc("submit_case_attempt", { p_case_id: scenario.id, p_selected_option: selectedOption });
+      const result = ((scored ?? []) as AttemptResult[])[0];
+      if (insertError || !result) {
+        if (isMounted.current) setSaveError(insertError?.message ?? "The server did not return a result.");
         return;
       }
       if (isMounted.current) {
-        setAttempts((previous) => [{ case_id: scenario.id, selected_option: selectedOption, score: selected.score, feedback: selected.feedback, created_at: new Date().toISOString() }, ...previous]);
+        setAttempts((previous) => [{ case_id: scenario.id, selected_option: selectedOption, score: result.out_score, feedback: result.out_feedback, created_at: new Date().toISOString() }, ...previous]);
+        setLastBest({ caseId: scenario.id, option: result.out_best_option, feedback: result.out_best_feedback });
+        setRetrying(false);
         setSubmitted(true);
       }
     } catch (error) {
@@ -176,7 +186,18 @@ export default function DashboardPage() {
   if (loadingScenarios) return <LoadingScreen message="Loading scenarios from Supabase..." />;
   if (loadingProgress) return <LoadingScreen message="Restoring your learning progress..." />;
   if (scenarioError) return <ErrorScreen title="Could not load scenarios" error={scenarioError} />;
-  if (scenarios.length === 0) return <main className="min-h-screen bg-[#07111f] p-8 text-white">No approved scenarios are available yet.</main>;
+  if (scenarios.length === 0) return (
+    <main className="min-h-screen bg-[#08111f] p-8 text-white">
+      <div className="mx-auto max-w-2xl">
+        <h1 className="text-2xl font-semibold">No approved scenarios yet</h1>
+        <p className="mt-3 leading-7 text-slate-400">Practice scenarios appear here once an expert has answered a case and an independent reviewer has approved it. You can start that process by submitting your own case.</p>
+        <div className="mt-6 flex flex-wrap gap-3">
+          <Link href="/dashboard/submit" className="rounded-xl bg-[#69e2bd] px-6 py-3.5 text-sm font-bold text-[#08111f] transition hover:bg-[#91f3d4]">Submit a Case</Link>
+          <Link href="/" className="rounded-xl border border-white/10 px-6 py-3.5 text-sm text-slate-300 hover:text-[#69e2bd]">← Home</Link>
+        </div>
+      </div>
+    </main>
+  );
 
   
   return (
@@ -198,6 +219,14 @@ export default function DashboardPage() {
           </Link>
 
           <nav aria-label="Workspace navigation" className="flex items-center gap-2">
+            <Link href="/engine" className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white md:block">Engine</Link>
+            <Link href="/progress" className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white md:block">My progress</Link>
+            <Link
+              href="/dashboard/submit"
+              className="rounded-xl bg-[#69e2bd] px-4 py-2.5 text-sm font-bold text-[#08111f] transition hover:bg-[#91f3d4]"
+            >
+              Submit a Case
+            </Link>
             <Link
               href="/demo"
               className="hidden rounded-xl px-4 py-2.5 text-sm text-slate-400 transition hover:bg-white/5 hover:text-white sm:block"
@@ -238,6 +267,13 @@ export default function DashboardPage() {
                 and track your progress as you develop professional
                 problem-solving skills.
               </p>
+
+              <Link
+                href="/dashboard/submit"
+                className="mt-6 inline-block rounded-xl bg-[#69e2bd] px-6 py-3.5 text-sm font-bold text-[#08111f] transition hover:bg-[#91f3d4]"
+              >
+                Submit a Case →
+              </Link>
             </div>
 
             <div className="relative w-full rounded-2xl border border-white/[0.08] bg-[#08111f]/70 p-5 lg:max-w-xs">
@@ -468,6 +504,9 @@ export default function DashboardPage() {
             <h2 className="mt-6 text-2xl font-semibold leading-snug tracking-tight sm:text-3xl">
               {scenario.title}
             </h2>
+            {scenario.is_seed && (
+              <p className="mt-3 inline-block rounded-full border border-amber-300/30 px-3 py-1 text-xs text-amber-200">Demo seed example — not real expert experience</p>
+            )}
 
             <div className="mt-6 rounded-2xl border border-white/[0.08] bg-[#08111f]/70 p-5 sm:p-6">
               <div className="flex items-center gap-2">
@@ -493,6 +532,15 @@ export default function DashboardPage() {
                 believe is most appropriate.
               </p>
             </div>
+
+            {scenario.options.length === 0 && (
+              <div className="mt-5 rounded-xl border border-white/10 bg-white/[0.03] p-5 text-sm leading-6 text-slate-300">
+                This approved case does not have scored answer options yet.{" "}
+                <Link href={`/resources/${scenario.id}`} className="font-semibold text-[#69e2bd] hover:text-[#b6f7e3]">
+                  Open it as a learning resource →
+                </Link>
+              </div>
+            )}
 
             <div className="mt-5 space-y-3">
               {scenario.options.map((option, index) => {
@@ -545,7 +593,7 @@ export default function DashboardPage() {
                       EVALUATION FEEDBACK
                     </p>
                     <p className="mt-3 text-3xl font-semibold">
-                      {restoredAttempt?.score ?? selected.score}
+                      {restoredAttempt?.score ?? 0}
                       <span className="ml-1 text-base font-normal text-slate-500">
                         / 100
                       </span>
@@ -557,8 +605,16 @@ export default function DashboardPage() {
                 </div>
 
                 <p className="mt-4 text-sm leading-7 text-slate-300">
-                  {restoredAttempt?.feedback ?? selected.feedback}
+                  {restoredAttempt?.feedback ?? ""}
                 </p>
+
+                {lastBest && lastBest.caseId === scenario.id && scenario.options[lastBest.option] && (
+                  <div className="mt-4 rounded-xl border border-white/10 bg-[#08111f]/60 p-4">
+                    <p className="text-[10px] font-semibold tracking-[0.15em] text-[#69e2bd]">EXPERT-RECOMMENDED CHOICE</p>
+                    <p className="mt-2 text-sm text-slate-200">{String.fromCharCode(65 + lastBest.option)}. {scenario.options[lastBest.option].text}</p>
+                    <p className="mt-2 text-sm leading-6 text-slate-400">{lastBest.feedback}</p>
+                  </div>
+                )}
 
                 <div className="mt-5 border-t border-white/[0.08] pt-4">
                   <p className="text-xs text-slate-500">
@@ -606,6 +662,16 @@ export default function DashboardPage() {
               )}
 
               {caseCompleted && (
+                <button
+                  type="button"
+                  onClick={() => { setRetrying(true); setSelectedOption(null); setSubmitted(false); setLastBest(null); setSaveError(""); }}
+                  className="rounded-xl border border-white/15 px-6 py-3.5 text-sm font-semibold text-slate-200 transition hover:border-[#69e2bd]/50 hover:text-[#69e2bd]"
+                >
+                  Practise this case again
+                </button>
+              )}
+
+              {caseCompleted && (
                 <span className="text-xs leading-5 text-slate-500">
                   Your latest saved response is displayed for this case.
                 </span>
@@ -613,8 +679,8 @@ export default function DashboardPage() {
             </div>
 
             <p className="mt-7 border-t border-white/[0.08] pt-4 text-xs leading-6 text-slate-500">
-              Scores and feedback are predefined for each answer in the
-              current implementation. Results are learning aids, not a
+              Each option score comes from the expert reviewed rubric and is
+              calculated on the server. Results are learning aids, not a
               validated professional competency assessment.
             </p>
           </section>

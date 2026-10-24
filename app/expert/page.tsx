@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CaseStatusBadge } from "@/components/CaseStatusBadge";
-import { emptyCasePayload, ExpertCase, CasePayload, formatDate } from "@/lib/cases";
+import { CaseOption, emptyCasePayload, ExpertCase, CasePayload, formatDate } from "@/lib/cases";
 import { supabase } from "@/lib/supabase";
+import { OpenCaseRequest } from "@/lib/learnerCases";
 
 const fields: Array<{ key: keyof CasePayload; label: string; hint: string; required?: boolean; rows?: number }> = [
   { key: "title", label: "Case title", hint: "A concise, searchable name.", required: true },
@@ -29,17 +30,24 @@ export default function ExpertCasesPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [openRequests, setOpenRequests] = useState<OpenCaseRequest[]>([]);
+  const [requestsError, setRequestsError] = useState("");
+  const [claimingId, setClaimingId] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   const load = useCallback(async () => {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) { router.replace("/login"); return; }
     const { data: canCapture, error: roleError } = await supabase.rpc("has_case_role", { p_role: "expert" });
-    if (roleError || !canCapture) { setError("This account is not provisioned as an expert. Ask an administrator to assign the expert role."); setLoading(false); return; }
+    if (roleError || !canCapture) { setError("This account is not provisioned as an expert. Ask an administrator to assign the expert role."); setAccessDenied(true); setLoading(false); return; }
     const { data, error: casesError } = await supabase.from("expert_cases")
       .select("id, title, domain, difficulty, situation, question, options, case_context, initial_conditions, attempted_approaches, final_solution, reasoning_tradeoffs, lessons_learned, experience_level, workflow_status, review_feedback, submitted_at, reviewed_at, revision_number, created_at")
       .order("created_at", { ascending: false });
     if (casesError) setError(casesError.message);
     else setCases((data ?? []) as ExpertCase[]);
+    const { data: open, error: openError } = await supabase.rpc("list_open_case_requests");
+    if (openError) setRequestsError(openError.message);
+    else { setRequestsError(""); setOpenRequests((open ?? []) as OpenCaseRequest[]); }
     setLoading(false);
   }, [router]);
 
@@ -62,6 +70,19 @@ export default function ExpertCasesPage() {
   }
 
   function resetForm() { setEditingId(null); setPayload(emptyCasePayload); setMessage(""); setError(""); }
+
+  async function claimRequest(requestId: string) {
+    setClaimingId(requestId); setMessage(""); setError("");
+    const { data: caseId, error: claimError } = await supabase.rpc("claim_case_request", { p_request_id: requestId });
+    if (claimError) { setError(claimError.message); setClaimingId(null); await load(); return; }
+    const { data: row, error: rowError } = await supabase.from("expert_cases")
+      .select("id, title, domain, difficulty, situation, question, options, case_context, initial_conditions, attempted_approaches, final_solution, reasoning_tradeoffs, lessons_learned, experience_level, workflow_status, review_feedback, submitted_at, reviewed_at, revision_number, created_at")
+      .eq("id", caseId as string).single();
+    await load();
+    if (rowError || !row) setError(rowError?.message ?? "The request was claimed, but the draft could not be opened. Find it under Your cases.");
+    else { startEdit(row as ExpertCase); setMessage("Request claimed. Review the prefilled draft, add your diagnosis, solution and lessons, then submit it for review."); }
+    setClaimingId(null);
+  }
 
   async function saveDraft() {
     setSaving(true); setMessage(""); setError("");
@@ -87,491 +108,50 @@ export default function ExpertCasesPage() {
   }
 
   if (loading) return <PageShell><p className="text-slate-300">Loading your case workspace…</p></PageShell>;
-  if (error && cases.length === 0) return <PageShell><AccessError error={error} /></PageShell>;
+  if (accessDenied) return <PageShell><AccessError error={error} /></PageShell>;
 
- 
-  return (
-    <PageShell>
-      <div className="space-y-8">
-        {/* Workspace introduction */}
-        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#101c2b] p-6 sm:p-9">
-          <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#69e2bd]/10 blur-[90px]" />
-
-          <div className="relative flex flex-col justify-between gap-6 lg:flex-row lg:items-end">
-            <div className="max-w-2xl">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[#69e2bd]/20 bg-[#69e2bd]/[0.06] px-3 py-1.5 text-[10px] font-semibold tracking-[0.16em] text-[#69e2bd]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[#69e2bd]" />
-                EXPERT KNOWLEDGE CAPTURE
-              </span>
-
-              <h1 className="mt-5 text-3xl font-semibold tracking-tight sm:text-4xl lg:text-5xl">
-                Your experience can become
-                <span className="block text-[#69e2bd]">
-                  someone else's advantage.
-                </span>
-              </h1>
-
-              <p className="mt-4 max-w-xl text-sm leading-7 text-slate-400 sm:text-base">
-                Capture real workplace challenges, the decisions behind
-                successful outcomes, and the lessons that other professionals
-                can learn from. Submitted cases go through expert review
-                before becoming available to learners.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={resetForm}
-              className="relative shrink-0 self-start rounded-xl bg-[#69e2bd] px-5 py-3.5 text-sm font-bold text-[#08111f] transition hover:bg-[#91f3d4] lg:self-auto"
-            >
-              + Create a new case
-            </button>
-          </div>
-        </section>
-
-        {/* Real workflow counts */}
-        <section
-          aria-label="Your case statistics"
-          className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"
-        >
-          {[
-            {
-              label: "Total cases",
-              value: cases.length,
-              note: "All your saved cases",
-            },
-            {
-              label: "Drafts",
-              value: cases.filter((item) => item.workflow_status === "draft").length,
-              note: "Work in progress",
-            },
-            {
-              label: "Under review",
-              value: cases.filter((item) => item.workflow_status === "submitted").length,
-              note: "Awaiting a decision",
-            },
-            {
-              label: "Approved",
-              value: cases.filter((item) => item.workflow_status === "approved").length,
-              note: "Approved for learners",
-            },
-          ].map((stat) => (
-            <article
-              key={stat.label}
-              className="rounded-2xl border border-white/10 bg-[#101c2b] p-5"
-            >
-              <p className="text-sm text-slate-400">{stat.label}</p>
-              <p className="mt-3 text-3xl font-semibold tracking-tight text-white">
-                {stat.value}
-              </p>
-              <p className="mt-2 text-xs text-slate-500">{stat.note}</p>
-            </article>
-          ))}
-        </section>
-
-        {/* Authoring workspace */}
-        <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="min-w-0 rounded-2xl border border-white/10 bg-[#101c2b]">
-            <div className="border-b border-white/[0.08] p-5 sm:p-7">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-semibold tracking-[0.17em] text-[#69e2bd]">
-                    CASE AUTHORING
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold sm:text-2xl">
-                    {editingId ? "Refine your case" : "Capture a new experience"}
-                  </h2>
-                </div>
-
-                <span className="rounded-full border border-white/10 px-3 py-1.5 text-xs text-slate-400">
-                  {editingId ? "Editing existing case" : "New draft"}
-                </span>
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Explain the context, the decision, the reasoning, and the
-                lessons learned. Clear details help reviewers assess the
-                case's value for practical learning.
-              </p>
-            </div>
-
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void saveDraft();
-              }}
-              className="space-y-8 p-5 sm:p-7"
-            >
-              {/* Section 1 */}
-              <section>
-                <div className="mb-5 flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#69e2bd]/20 bg-[#69e2bd]/[0.07] text-sm font-semibold text-[#69e2bd]">
-                    01
-                  </span>
-                  <div>
-                    <h3 className="font-semibold">Case overview</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Define what happened and the expertise involved.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid gap-5 sm:grid-cols-2">
-                  <TextField
-                    label="Case title"
-                    required
-                    value={payload.title}
-                    onChange={(value) => setField("title", value)}
-                    hint="Use a specific, searchable title."
-                  />
-                  <TextField
-                    label="Domain"
-                    required
-                    value={payload.domain}
-                    onChange={(value) => setField("domain", value)}
-                    hint="For example, project management or quality assurance."
-                  />
-                  <SelectField
-                    label="Difficulty"
-                    value={payload.difficulty}
-                    onChange={(value) => setField("difficulty", value)}
-                    options={["Foundational", "Intermediate", "Advanced"]}
-                  />
-                  <SelectField
-                    label="Experience level"
-                    value={payload.experience_level ?? ""}
-                    onChange={(value) => setField("experience_level", value)}
-                    options={[
-                      "",
-                      "Early career",
-                      "Experienced",
-                      "Senior",
-                      "Subject-matter expert",
-                    ]}
-                  />
-                </div>
-              </section>
-
-              <div className="border-t border-white/[0.08]" />
-
-              {/* Section 2 */}
-              <section>
-                <div className="mb-5 flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#69e2bd]/20 bg-[#69e2bd]/[0.07] text-sm font-semibold text-[#69e2bd]">
-                    02
-                  </span>
-                  <div>
-                    <h3 className="font-semibold">The real-world situation</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Give the learner enough context to understand the challenge.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  {fields.slice(2, 5).map((field) => (
-                    <TextField
-                      key={field.key}
-                      label={field.label}
-                      hint={field.hint}
-                      required={field.required}
-                      rows={field.rows}
-                      value={String(payload[field.key] ?? "")}
-                      onChange={(value) => setField(field.key, value)}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <div className="border-t border-white/[0.08]" />
-
-              {/* Section 3 */}
-              <section>
-                <div className="mb-5 flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#69e2bd]/20 bg-[#69e2bd]/[0.07] text-sm font-semibold text-[#69e2bd]">
-                    03
-                  </span>
-                  <div>
-                    <h3 className="font-semibold">The decision-making process</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Capture alternatives and the question the learner must answer.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  {fields.slice(5, 7).map((field) => (
-                    <TextField
-                      key={field.key}
-                      label={field.label}
-                      hint={field.hint}
-                      required={field.required}
-                      rows={field.rows}
-                      value={String(payload[field.key] ?? "")}
-                      onChange={(value) => setField(field.key, value)}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <div className="border-t border-white/[0.08]" />
-
-              {/* Section 4 */}
-              <section>
-                <div className="mb-5 flex items-start gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-[#69e2bd]/20 bg-[#69e2bd]/[0.07] text-sm font-semibold text-[#69e2bd]">
-                    04
-                  </span>
-                  <div>
-                    <h3 className="font-semibold">Expert reasoning and lessons</h3>
-                    <p className="mt-1 text-xs leading-5 text-slate-500">
-                      Explain the solution, trade-offs, and transferable insights.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-5">
-                  {fields.slice(7).map((field) => (
-                    <TextField
-                      key={field.key}
-                      label={field.label}
-                      hint={field.hint}
-                      required={field.required}
-                      rows={field.rows}
-                      value={String(payload[field.key] ?? "")}
-                      onChange={(value) => setField(field.key, value)}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <div className="rounded-xl border border-[#69e2bd]/15 bg-[#69e2bd]/[0.04] p-4">
-                <p className="text-sm font-semibold text-slate-200">
-                  What happens after submission?
-                </p>
-                <p className="mt-2 text-xs leading-6 text-slate-400">
-                  Your case enters the reviewer queue. Reviewers can approve it
-                  or request revisions with feedback. Saving a draft does not
-                  publish the case to learners.
-                </p>
-              </div>
-
-              {error && (
-                <p
-                  role="alert"
-                  className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm leading-6 text-red-200"
-                >
-                  {error}
-                </p>
-              )}
-
-              {message && (
-                <p
-                  role="status"
-                  className="rounded-xl border border-[#69e2bd]/30 bg-[#69e2bd]/10 p-4 text-sm leading-6 text-[#b6f7e3]"
-                >
-                  {message}
-                </p>
-              )}
-
-              <div className="flex flex-wrap gap-3 border-t border-white/[0.08] pt-6">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-xl border border-white/15 px-5 py-3 text-sm font-semibold text-slate-200 transition hover:border-[#69e2bd]/50 hover:text-[#69e2bd] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving
-                    ? "Saving..."
-                    : editingId
-                      ? "Save changes"
-                      : "Save as draft"}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => void submitForReview()}
-                  disabled={saving}
-                  className="rounded-xl bg-[#69e2bd] px-5 py-3 text-sm font-bold text-[#08111f] transition hover:bg-[#91f3d4] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {saving ? "Processing..." : "Submit for review →"}
-                </button>
-
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    disabled={saving}
-                    className="rounded-xl px-4 py-3 text-sm text-slate-400 transition hover:text-white disabled:opacity-50"
-                  >
-                    Cancel editing
-                  </button>
-                )}
-              </div>
-            </form>
-          </section>
-
-          {/* Case library */}
-          <aside className="min-w-0 space-y-5 xl:sticky xl:top-24">
-            <section className="rounded-2xl border border-white/10 bg-[#101c2b] p-5 sm:p-6">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-semibold tracking-[0.16em] text-[#69e2bd]">
-                    KNOWLEDGE LIBRARY
-                  </p>
-                  <h2 className="mt-2 text-xl font-semibold">Your cases</h2>
-                </div>
-                <span className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-400">
-                  {cases.length}
-                </span>
-              </div>
-
-              <p className="mt-3 text-sm leading-6 text-slate-400">
-                Track your drafts, review decisions, and approved cases.
-              </p>
-
-              <div className="mt-5 space-y-3">
-                {cases.length === 0 ? (
-                  <div className="rounded-xl border border-dashed border-white/15 p-5 text-center">
-                    <span className="text-2xl text-slate-500">◈</span>
-                    <p className="mt-3 text-sm font-medium text-slate-300">
-                      Your library is empty
-                    </p>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
-                      Create your first case to start capturing industry knowledge.
-                    </p>
-                  </div>
-                ) : (
-                  cases.map((item) => (
-                    <article
-                      key={item.id}
-                      className="rounded-xl border border-white/[0.08] bg-[#08111f]/50 p-4 transition hover:border-white/15"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <h3 className="min-w-0 text-sm font-semibold leading-6 text-slate-200">
-                          {item.title}
-                        </h3>
-                        <CaseStatusBadge status={item.workflow_status} />
-                      </div>
-
-                      <p className="mt-2 text-xs leading-5 text-slate-400">
-                        {item.domain}
-                      </p>
-
-                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
-                        <span className="text-[10px] text-slate-500">
-                          Revision {item.revision_number}
-                        </span>
-                        <span className="text-[10px] text-slate-500">
-                          {formatDate(
-                            item.reviewed_at ??
-                              item.submitted_at ??
-                              item.created_at,
-                          )}
-                        </span>
-                      </div>
-
-                      {item.review_feedback && (
-                        <div className="mt-3 rounded-lg border border-amber-400/15 bg-amber-400/[0.04] p-3">
-                          <p className="text-[10px] font-semibold tracking-wide text-amber-200">
-                            REVIEWER FEEDBACK
-                          </p>
-                          <p className="mt-2 whitespace-pre-wrap text-xs leading-6 text-slate-300">
-                            {item.review_feedback}
-                          </p>
-                        </div>
-                      )}
-
-                      {["draft", "rejected"].includes(item.workflow_status) && (
-                        <button
-                          type="button"
-                          onClick={() => startEdit(item)}
-                          className="mt-4 text-xs font-semibold text-[#69e2bd] transition hover:text-[#b6f7e3]"
-                        >
-                          Edit case →
-                        </button>
-                      )}
-
-                      {item.workflow_status === "submitted" && (
-                        <p className="mt-4 text-xs text-slate-500">
-                          Awaiting reviewer assessment
-                        </p>
-                      )}
-
-                      {item.workflow_status === "approved" && (
-                        <p className="mt-4 text-xs text-[#69e2bd]">
-                          Approved for learner access
-                        </p>
-                      )}
-                    </article>
-                  ))
-                )}
-              </div>
-            </section>
-
-            <section className="rounded-2xl border border-[#69e2bd]/15 bg-[#69e2bd]/[0.04] p-5">
-              <p className="text-sm font-semibold text-slate-200">
-                The expert advantage
-              </p>
-              <p className="mt-3 text-xs leading-6 text-slate-400">
-                The most useful case does more than describe the final answer.
-                It explains the constraints, alternatives, judgment, and
-                lessons that made the outcome possible.
-              </p>
-            </section>
-          </aside>
-        </div>
-      </div>
-    </PageShell>);
-
+  return <PageShell>
+    <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <section>
+        <p className="text-xs font-semibold tracking-[0.22em] text-[#69e2bd]">EXPERT CASE CAPTURE</p>
+        <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Turn experience into a teachable case.</h1>
+        <p className="mt-3 max-w-3xl leading-7 text-slate-400">Capture the decision context, not only the final answer. Drafts remain private; submitted cases enter reviewer assessment before learners can see them.</p>
+        <form onSubmit={(event) => { event.preventDefault(); void saveDraft(); }} className="mt-8 space-y-5 rounded-2xl border border-white/10 bg-[#101c2b] p-5 sm:p-7">
+          <div className="grid gap-5 sm:grid-cols-2"><TextField label="Case title" required value={payload.title} onChange={(value) => setField("title", value)} hint="A concise, searchable name." /><TextField label="Domain" required value={payload.domain} onChange={(value) => setField("domain", value)} hint="For example: project management or quality assurance." />
+            <SelectField label="Difficulty" value={payload.difficulty} onChange={(value) => setField("difficulty", value)} options={["Foundational", "Intermediate", "Advanced"]} /><SelectField label="Your experience level" value={payload.experience_level ?? ""} onChange={(value) => setField("experience_level", value)} options={["", "Early career", "Experienced", "Senior", "Subject-matter expert"]} /></div>
+          {fields.slice(2).map((field) => <TextField key={field.key} label={field.label} hint={field.hint} required={field.required} rows={field.rows} value={String(payload[field.key] ?? "")} onChange={(value) => setField(field.key, value)} />)}
+          <OptionsEditor options={payload.options} onChange={(options) => setPayload((current) => ({ ...current, options }))} />
+          {error && <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">{error}</p>}
+          {message && <p role="status" className="rounded-xl border border-[#69e2bd]/30 bg-[#69e2bd]/10 p-4 text-sm text-[#b6f7e3]">{message}</p>}
+          <div className="flex flex-wrap gap-3"><button disabled={saving} className="rounded-full border border-white/20 px-5 py-3 text-sm font-semibold hover:border-[#69e2bd] disabled:opacity-50">{saving ? "Saving…" : editingId ? "Save changes" : "Save draft"}</button><button type="button" onClick={() => void submitForReview()} disabled={saving} className="rounded-full bg-[#69e2bd] px-5 py-3 text-sm font-bold text-[#08111f] hover:bg-[#91f3d4] disabled:opacity-50">Submit for review →</button>{editingId && <button type="button" onClick={resetForm} className="px-4 text-sm text-slate-400 hover:text-white">Start a new case</button>}</div>
+        </form>
+      </section>
+      <aside className="xl:pt-24"><h2 className="text-lg font-semibold">Open learner requests</h2><p className="mt-2 text-sm leading-6 text-slate-400">Real problems submitted by learners. Claiming one creates a private draft for you to complete.</p><div className="mt-5 space-y-3">{requestsError ? <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-200">Could not load learner requests: {requestsError}</p> : openRequests.length === 0 ? <p className="rounded-xl border border-white/10 p-4 text-sm text-slate-400">No open learner requests right now.</p> : openRequests.map((request) => <article key={request.id} className="rounded-xl border border-white/10 bg-[#101c2b] p-4"><h3 className="font-semibold">{request.title}</h3><p className="mt-1 text-xs text-slate-400">{request.domain} · {request.difficulty} · {formatDate(request.created_at)}</p><p className="mt-3 line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-slate-300">{request.context}</p><p className="mt-2 text-xs leading-5 text-slate-500">Objective: {request.learning_objective}</p><button type="button" disabled={claimingId !== null} onClick={() => void claimRequest(request.id)} className="mt-4 text-sm font-semibold text-[#69e2bd] hover:text-[#b6f7e3] disabled:opacity-50">{claimingId === request.id ? "Claiming…" : "Claim and start a draft →"}</button></article>)}</div><h2 className="mt-10 text-lg font-semibold">Your cases</h2><p className="mt-2 text-sm leading-6 text-slate-400">A reviewer’s rejection includes feedback and can be revised into a new submission.</p><div className="mt-5 space-y-3">{cases.length === 0 ? <p className="rounded-xl border border-white/10 p-4 text-sm text-slate-400">No cases saved yet.</p> : cases.map((item) => <article key={item.id} className="rounded-xl border border-white/10 bg-[#101c2b] p-4"><div className="flex items-start justify-between gap-3"><div><h3 className="font-semibold">{item.title}</h3><p className="mt-1 text-xs text-slate-400">{item.domain} · revision {item.revision_number}</p></div><CaseStatusBadge status={item.workflow_status} /></div>{item.review_feedback && <p className="mt-3 rounded-lg bg-red-500/10 p-3 text-sm leading-6 text-red-100">Reviewer: {item.review_feedback}</p>}<p className="mt-3 text-xs text-slate-500">Updated {formatDate(item.reviewed_at ?? item.submitted_at ?? item.created_at)}</p>{["draft", "rejected"].includes(item.workflow_status) && <button onClick={() => startEdit(item)} className="mt-4 text-sm font-semibold text-[#69e2bd] hover:text-[#b6f7e3]">Edit case →</button>}</article>)}</div></aside>
+    </div>
+  </PageShell>;
 }
 
-
-function PageShell({ children }: { children: React.ReactNode }) {
-  return (
-    <main className="min-h-screen bg-[#08111f] text-white">
-      <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#08111f]/90 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/" className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#69e2bd] text-xl font-black text-[#08111f]">
-              E
-            </span>
-            <span>
-              <span className="block text-sm font-bold tracking-wide">
-                Experience<span className="text-[#69e2bd]">Engine</span>
-              </span>
-              <span className="mt-1 block text-[10px] tracking-[0.15em] text-slate-500">
-                EXPERT WORKSPACE
-              </span>
-            </span>
-          </Link>
-
-          <nav
-            aria-label="Workspace navigation"
-            className="flex flex-wrap items-center gap-2 sm:gap-4"
-          >
-            <Link
-              href="/dashboard"
-              className="rounded-lg px-3 py-2 text-xs text-slate-400 transition hover:bg-white/5 hover:text-white sm:text-sm"
-            >
-              Learner workspace
-            </Link>
-            <Link
-              href="/review"
-              className="rounded-lg px-3 py-2 text-xs text-slate-400 transition hover:bg-white/5 hover:text-white sm:text-sm"
-            >
-              Review queue
-            </Link>
-          </nav>
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-[1500px] px-5 py-8 sm:px-8 sm:py-10 lg:px-10">
-        {children}
-      </div>
-    </main>
-  );
-}
-
+function PageShell({ children }: { children: React.ReactNode }) { return <main className="min-h-screen bg-[#08111f] text-white"><header className="border-b border-white/10 bg-[#0b1523]"><div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8"><Link href="/" className="font-bold tracking-wide">EXPERIENCE <span className="text-[#69e2bd]">ENGINE</span></Link><nav className="flex gap-3 text-sm"><Link className="text-slate-300 hover:text-[#69e2bd]" href="/dashboard">Learner workspace</Link><Link className="text-slate-300 hover:text-[#69e2bd]" href="/review">Review queue</Link></nav></div></header><div className="mx-auto max-w-7xl px-5 py-10 sm:px-8 sm:py-12">{children}</div></main>; }
 function TextField({ label, hint, value, onChange, required, rows }: { label: string; hint: string; value: string; onChange: (value: string) => void; required?: boolean; rows?: number }) { const classes = "mt-2 w-full rounded-xl border border-white/10 bg-[#0b1523] px-4 py-3 text-sm text-white outline-none placeholder:text-slate-600 focus:border-[#69e2bd]"; return <label className="block text-sm font-medium text-slate-200"><span>{label}{required && <span className="text-[#69e2bd]"> *</span>}</span>{rows ? <textarea rows={rows} required={required} value={value} onChange={(event) => onChange(event.target.value)} className={classes} /> : <input required={required} value={value} onChange={(event) => onChange(event.target.value)} className={classes} />}<span className="mt-1.5 block text-xs font-normal leading-5 text-slate-500">{hint}</span></label>; }
 function SelectField({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: string[] }) { return <label className="block text-sm font-medium text-slate-200">{label}<select value={value} onChange={(event) => onChange(event.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-[#0b1523] px-4 py-3 text-sm text-white outline-none focus:border-[#69e2bd]">{options.map((option) => <option key={option} value={option}>{option || "Choose an experience level"}</option>)}</select></label>; }
 function AccessError({ error }: { error: string }) { return <><h1 className="text-2xl font-semibold">Expert access required</h1><p className="mt-3 max-w-xl leading-7 text-slate-400">{error}</p><Link href="/dashboard" className="mt-6 inline-block rounded-full bg-[#69e2bd] px-5 py-3 text-sm font-bold text-[#08111f]">Go to learner workspace</Link></>; }
+
+function OptionsEditor({ options, onChange }: { options: CaseOption[]; onChange: (options: CaseOption[]) => void }) {
+  const update = (index: number, patch: Partial<CaseOption>) => onChange(options.map((option, i) => (i === index ? { ...option, ...patch } : option)));
+  const field = "mt-1 w-full rounded-lg border border-white/10 bg-[#0b1523] px-3 py-2 text-sm text-white outline-none focus:border-[#69e2bd]";
+  return <fieldset className="rounded-xl border border-white/10 p-4">
+    <legend className="px-2 text-sm font-semibold text-slate-200">Scored decision options</legend>
+    <p className="text-xs leading-5 text-slate-400">Give learners 3 to 6 realistic choices. Score each 0 to 100 and explain why. At least one option must score 80 or more. Needed before you can submit for review; learners only see scores after answering.</p>
+    <div className="mt-4 space-y-4">
+      {options.map((option, index) => <div key={index} className="rounded-lg border border-white/10 bg-[#0b1523]/60 p-3">
+        <div className="flex items-center justify-between"><span className="text-xs font-semibold text-[#69e2bd]">OPTION {String.fromCharCode(65 + index)}</span><button type="button" onClick={() => onChange(options.filter((_, i) => i !== index))} className="text-xs text-slate-400 hover:text-red-200">Remove</button></div>
+        <label className="mt-2 block text-xs text-slate-300">Choice text<textarea rows={2} maxLength={1000} value={option.text} onChange={(event) => update(index, { text: event.target.value })} className={field} /></label>
+        <div className="mt-2 grid gap-3 sm:grid-cols-[7rem_1fr]">
+          <label className="block text-xs text-slate-300">Score (0–100)<input type="number" min={0} max={100} step={1} value={option.score} onChange={(event) => update(index, { score: Math.max(0, Math.min(100, Math.round(Number(event.target.value) || 0))) })} className={field} /></label>
+          <label className="block text-xs text-slate-300">Feedback shown after answering<textarea rows={2} maxLength={2000} value={option.feedback} onChange={(event) => update(index, { feedback: event.target.value })} className={field} /></label>
+        </div>
+      </div>)}
+    </div>
+    {options.length < 6 && <button type="button" onClick={() => onChange([...options, { text: "", score: 0, feedback: "" }])} className="mt-4 text-sm font-semibold text-[#69e2bd] hover:text-[#b6f7e3]">+ Add an option</button>}
+  </fieldset>;
+}

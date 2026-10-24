@@ -60,3 +60,38 @@ Use `reviewer` instead to provision a review account. The table intentionally pe
 npm run lint
 npm run build
 ```
+
+## Learner case submission (Batch 1)
+
+Learners use **Submit a Case** on `/dashboard` (page: `/dashboard/submit`). Experts claim open requests on `/expert`,
+write the case, and a different reviewer approves it on `/review`. Approved cases open at `/resources/<id>`.
+
+Apply the new migration before testing: `supabase db push` (or paste
+`supabase/migrations/20261024120000_learner_case_requests.sql` into the Supabase SQL Editor and run it once).
+
+End-to-end test with three accounts (learner = any normal sign-up; expert and reviewer provisioned in `case_roles`):
+1. Learner: `/dashboard` -> Submit a Case -> fill the form -> success message; the case shows "Waiting for an expert".
+2. Expert: `/expert` -> "Open learner requests" -> Claim -> fill final solution and lessons learned -> Submit for review.
+3. Reviewer: `/review` -> Approve.
+4. Learner: `/dashboard/submit` -> status "Published" -> Open learning resource.
+5. Check: the expert account cannot approve its own case; the learner cannot open `/review` or `/expert`.
+
+See `IMPLEMENTATION_STATUS.md` for what is verified and what remains.
+
+## Engine, practice and progress (Batch 2)
+
+Apply BOTH migrations in order (`supabase db push`, or run each file once in the SQL Editor). Optionally run
+`supabase/seed_demo_cases.sql` to load three clearly labelled demo cases so retrieval has something to find.
+Copy `.env.example` to `.env.local` and fill the two Supabase values. `ANTHROPIC_API_KEY` is optional.
+
+Test additions (after the Batch 1 flow):
+1. Expert: the draft form now has "Scored decision options" - add 3 options, one scoring 80+, before submitting.
+2. Reviewer: score the four rubric criteria, then approve.
+3. Learner: `/dashboard` - answer a case (score and feedback come back from the server); use "Practise this case again".
+4. Learner: `/engine` - paste a problem; check matched cases, "Why this recommendation?" and the limitations box.
+5. Learner: `/resources/<id>` - write an answer and press "Check my answer".
+6. Learner: `/progress` - the metrics should reflect exactly the attempts you made.
+
+Architecture: Next.js pages -> Supabase RPC functions (all authorization and scoring in PostgreSQL) -> one API route
+(`/api/engine`) that calls retrieval with the caller's own token and optionally an LLM. Roles are granted only by an
+administrator in `case_roles`.
