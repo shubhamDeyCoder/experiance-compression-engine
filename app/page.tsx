@@ -1,5 +1,6 @@
 
 import Link from "next/link";
+import Image from "next/image";
 
 const pillars = [
   {
@@ -84,9 +85,14 @@ export default function Home() {
           className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8 lg:px-10"
         >
           <Link href="/" className="flex shrink-0 items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#69e2bd] text-lg font-black text-[#08111f]">
-              E
-            </span>
+            <Image
+  src="/ece-logo.png"
+  alt="Experience Compression Engine logo"
+  width={44}
+  height={44}
+  priority
+  className="h-11 w-11 shrink-0 object-contain"
+/>
             <span>
               <span className="block text-sm font-bold tracking-wide sm:text-base">
                 Experience<span className="text-[#69e2bd]">Engine</span>

@@ -1,5 +1,5 @@
 "use client";
-
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -97,10 +97,17 @@ export default function WorkspaceHeader() {
     <header className="sticky top-0 z-40 border-b border-white/[0.08] bg-[#08111f]/95 backdrop-blur-xl">
       <div className="mx-auto flex max-w-7xl flex-col gap-4 px-5 py-4 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-center justify-between gap-4">
+          
           <Link href={home} className="flex min-w-0 items-center gap-3">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#69e2bd] text-lg font-black text-[#08111f]">
-              E
-            </span>
+            <Image
+  src="/ece-logo.png"
+  alt="Experience Compression Engine logo"
+  width={44}
+  height={44}
+  priority
+  className="h-11 w-11 shrink-0  object-contain"
+  
+/>
             <span className="min-w-0">
               <span className="block text-sm font-bold tracking-wide">
                 Experience<span className="text-[#69e2bd]">Engine</span>
